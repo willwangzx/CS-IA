@@ -1,0 +1,53 @@
+CXX = g++
+CXXFLAGS = -std=c++17 -Wall -Wextra -g
+SFML_FLAGS = -lsfml-graphics -lsfml-window -lsfml-system
+
+# Targets
+TARGET_CONSOLE = library_system
+TARGET_GUI = library_system_gui
+
+# Source files
+COMMON_SOURCES = Book.cpp LibraryManagementSystem.cpp
+CONSOLE_SOURCES = main.cpp
+GUI_SOURCES = main_gui.cpp LibraryGUI.cpp
+
+# Headers
+HEADERS = Book.h RedBlackTree.h LibraryManagementSystem.h LibraryGUI.h
+
+# Object files
+COMMON_OBJECTS = $(COMMON_SOURCES:.cpp=.o)
+CONSOLE_OBJECTS = $(CONSOLE_SOURCES:.cpp=.o)
+GUI_OBJECTS = $(GUI_SOURCES:.cpp=.o)
+
+# Default target
+all: $(TARGET_CONSOLE) $(TARGET_GUI)
+
+# Console version
+$(TARGET_CONSOLE): $(COMMON_OBJECTS) $(CONSOLE_OBJECTS)
+	$(CXX) $(CXXFLAGS) -o $(TARGET_CONSOLE) $(COMMON_OBJECTS) $(CONSOLE_OBJECTS)
+
+# GUI version
+$(TARGET_GUI): $(COMMON_OBJECTS) $(GUI_OBJECTS)
+	$(CXX) $(CXXFLAGS) -o $(TARGET_GUI) $(COMMON_OBJECTS) $(GUI_OBJECTS) $(SFML_FLAGS)
+
+# Compile object files
+%.o: %.cpp $(HEADERS)
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+# Clean
+clean:
+	rm -f $(COMMON_OBJECTS) $(CONSOLE_OBJECTS) $(GUI_OBJECTS) $(TARGET_CONSOLE) $(TARGET_GUI)
+
+# Run targets
+run-console: $(TARGET_CONSOLE)
+	./$(TARGET_CONSOLE)
+
+run-gui: $(TARGET_GUI)
+	./$(TARGET_GUI)
+
+# Individual targets
+console: $(TARGET_CONSOLE)
+
+gui: $(TARGET_GUI)
+
+.PHONY: all clean run-console run-gui console gui
