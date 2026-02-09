@@ -257,7 +257,7 @@ LibraryGUI::~LibraryGUI() {
 }
 
 bool LibraryGUI::loadFont(const std::string& fontPath) {
-    if (!font.openFromFile(fontPath)) {
+    if (!font.loadFromFile(fontPath)) {
         return false;
     }
     
@@ -732,7 +732,7 @@ void LibraryGUI::handleViewAllEvents(const sf::Event& event) {
     
     // Handle scrolling
     if (event.type == sf::Event::MouseWheelScrolled) {
-        if (event.mouseWheelScroll.wheel == sf::Mouse::Wheel::Vertical) {
+        if (event.mouseWheelScroll.wheel == sf::Mouse::VerticalWheel) {
             bookList->scroll(-static_cast<int>(event.mouseWheelScroll.delta));
         }
     }
