@@ -34,7 +34,11 @@ private:
     RBNode<T>* minimum(RBNode<T>* node);
     RBNode<T>* maximum(RBNode<T>* node);
     void inorderHelper(RBNode<T>* node) const;
-    void destroyTree(RBNode<T>* node);
+    // void inorderTraversal(T func) const;
+    template <typename Func>
+    void inorderHelperFunc(RBNode<T>* node, Func func) const;
+    void destroyTree(RBNode<T> *node);
+    void inorderHelper(RBNode<T>* node, const T& data)const;
 
 public:
     RedBlackTree();
@@ -45,6 +49,12 @@ public:
     RBNode<T>* search(const T& data);
     void inorderTraversal() const;
     bool isEmpty() const { return root == nil; }
+    void clear() {
+        destroyTree(root);
+        root = nil;
+    }
+    template <typename Func>
+    void inorderTraversal(Func func) const;
 };
 
 // Implementation
@@ -352,4 +362,19 @@ void RedBlackTree<T>::inorderHelper(RBNode<T>* node) const {
     }
 }
 
+template <typename T>
+template <typename Func>
+void RedBlackTree<T>::inorderTraversal(Func func) const {
+    inorderHelperFunc(root, func);
+}
+
+template <typename T>
+template <typename Func>
+void RedBlackTree<T>::inorderHelperFunc(RBNode<T>* node, Func func) const {
+    if (node != nil) {
+        inorderHelperFunc(node->left, func);
+        func(node->data);
+        inorderHelperFunc(node->right, func);
+    }
+}
 #endif

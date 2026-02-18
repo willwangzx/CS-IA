@@ -34,6 +34,9 @@ public:
     
     // Display
     void display() const;
+    void serialize(std::ostream& os) const {
+        os << isbn << ',' << title << ',' << author << ',' << year << ',' << (isAvailable ? '1' : '0');
+    }
 };
 
 #endif

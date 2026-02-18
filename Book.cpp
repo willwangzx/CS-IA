@@ -5,10 +5,10 @@ Book::Book(int isbn, const std::string& title,
     : isbn(isbn), title(title), author(author), year(year), isAvailable(available) {}
 
 void Book::display() const {
-    std::cout << "ISBN: " << isbn 
-              << " | Title: " << title 
-              << " | Author: " << author 
-              << " | Year: " << year 
-              << " | Status: " << (isAvailable ? "Available" : "Checked Out") 
+    std::cout << isbn 
+              << "," << title 
+              << "," << author 
+              << "," << year 
+              << "," << (isAvailable ? "1" : "0") 
               << std::endl;
 }

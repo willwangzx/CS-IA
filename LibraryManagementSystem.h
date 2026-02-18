@@ -18,6 +18,8 @@ public:
     void returnBook(int isbn);
     void displayBook(int isbn);
     void displayAllBooks();
+    void loadFromFile(const std::string& filename);
+    void saveToFile(const std::string& filename) const;
     
     // Search operations
     Book* findBook(int isbn);
