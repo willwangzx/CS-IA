@@ -137,7 +137,7 @@ Potential improvements:
 - Search by title or author
 - Due date tracking for checked-out books
 - Fine calculation for overdue books
-- Persistent storage (file I/O)
+- ~Persistent storage (file I/O)~(done)
 - User account management
 - Reservation system
 - Category/genre classification
