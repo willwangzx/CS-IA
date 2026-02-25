@@ -3,6 +3,7 @@
 
 #include "RedBlackTree.h"
 #include "Book.h"
+#include<functional>
 
 class LibraryManagementSystem {
 private:
@@ -20,7 +21,8 @@ public:
     void displayAllBooks();
     void loadFromFile(const std::string& filename);
     void saveToFile(const std::string& filename) const;
-    
+    void forEachBook(std::function<void(const Book&)> func) const;
+
     // Search operations
     Book* findBook(int isbn);
 };

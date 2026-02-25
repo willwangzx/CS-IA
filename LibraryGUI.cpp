@@ -246,11 +246,11 @@ LibraryGUI::LibraryGUI()
     headerBar.setFillColor(sf::Color(70, 130, 180));
     
     // Add some sample books
-    library.addBook(1001, "The Great Gatsby", "F. Scott Fitzgerald", 1925);
-    library.addBook(1002, "To Kill a Mockingbird", "Harper Lee", 1960);
-    library.addBook(1003, "1984", "George Orwell", 1949);
-    library.addBook(1004, "Pride and Prejudice", "Jane Austen", 1813);
-    library.addBook(1005, "The Catcher in the Rye", "J.D. Salinger", 1951);
+    // library.addBook(1001, "The Great Gatsby", "F. Scott Fitzgerald", 1925);
+    // library.addBook(1002, "To Kill a Mockingbird", "Harper Lee", 1960);
+    // library.addBook(1003, "1984", "George Orwell", 1949);
+    // library.addBook(1004, "Pride and Prejudice", "Jane Austen", 1813);
+    // library.addBook(1005, "The Catcher in the Rye", "J.D. Salinger", 1951);
 }
 
 LibraryGUI::~LibraryGUI() {
@@ -488,16 +488,27 @@ void LibraryGUI::initializeReturnBookScreen() {
 void LibraryGUI::initializeViewAllScreen() {
     screenTitleText.setString("All Books in Library");
     screenTitleText.setPosition(300.f, 100.f);
-    
-    // Create scrollable list
+
+    // 创建滚动列表
     bookList = std::make_unique<ScrollableList>(
         sf::Vector2f(50.f, 160.f), sf::Vector2f(800.f, 450.f), font);
-    
-    // Populate with all books (this will be done in render method)
-    
-    // Create back button
+
+    bookList->clear();
+    // 从图书馆获取所有书籍并添加到列表
+    library.forEachBook([this](const Book& book) {
+        std::cout << "Adding to list: " << book.getTitle() << std::endl;
+        std::stringstream ss;
+        ss << "ISBN: " << book.getISBN()
+           << " | " << book.getTitle()
+           << " | " << book.getAuthor()
+           << " | " << book.getYear()
+           << " | " << (book.getAvailability() ? "Available" : "Checked Out");
+        bookList->addItem(ss.str());
+    });
+
+    // 创建返回按钮
     backButton = std::make_unique<Button>(
-        sf::Vector2f(375.f, 630.f), sf::Vector2f(150.f, 50.f), 
+        sf::Vector2f(375.f, 630.f), sf::Vector2f(150.f, 50.f),
         "Back", font);
 }
 
@@ -927,26 +938,6 @@ void LibraryGUI::run() {
         // Update
         updateHoverStates();
         messageBox->update();
-        
-        // Special handling for View All screen - populate book list
-        if (currentScreen == Screen::VIEW_ALL && bookList) {
-            static bool populated = false;
-            if (!populated) {
-                // This is a workaround - ideally we'd have a way to get all books from the library
-                // For now, we'll just show a message
-                bookList->clear();
-                bookList->addItem("ISBN: 1001 | The Great Gatsby | F. Scott Fitzgerald | 1925 | Available");
-                bookList->addItem("ISBN: 1002 | To Kill a Mockingbird | Harper Lee | 1960 | Available");
-                bookList->addItem("ISBN: 1003 | 1984 | George Orwell | 1949 | Available");
-                bookList->addItem("ISBN: 1004 | Pride and Prejudice | Jane Austen | 1813 | Available");
-                bookList->addItem("ISBN: 1005 | The Catcher in the Rye | J.D. Salinger | 1951 | Available");
-                populated = true;
-            }
-        } else if (currentScreen != Screen::VIEW_ALL) {
-            // Reset populated flag when leaving View All screen
-            static bool populated = false;
-            populated = false;
-        }
         
         // Clear window
         window.clear(sf::Color::White);

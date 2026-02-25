@@ -6,14 +6,14 @@
 
 LibraryManagementSystem::LibraryManagementSystem() {
     loadFromFile("library.dat");
-    if (bookTree.isEmpty()) {
+    /*if (bookTree.isEmpty()) {
         // 添加示例书籍
         addBook(1001, "The Great Gatsby", "F. Scott Fitzgerald", 1925);
         addBook(1002, "To Kill a Mockingbird", "Harper Lee", 1960);
         addBook(1003, "1984", "George Orwell", 1949);
         addBook(1004, "Pride and Prejudice", "Jane Austen", 1813);
         addBook(1005, "The Catcher in the Rye", "J.D. Salinger", 1951);
-    }
+    }*/
 }
 
 void LibraryManagementSystem::addBook(int isbn, const std::string& title, 
@@ -151,6 +151,10 @@ void LibraryManagementSystem::saveToFile(const std::string& filename) const {
         file << std::endl;
     });
     file.close();
+}
+
+void LibraryManagementSystem::forEachBook(std::function<void(const Book&)> func) const {
+    bookTree.inorderTraversal(func);
 }
 
 Book* LibraryManagementSystem::findBook(int isbn) {
