@@ -26,6 +26,7 @@ This ensures the tree remains balanced, guaranteeing O(log n) performance.
 - `Book.h/cpp`: Book class representing library items
 - `RedBlackTree.h`: Template-based Red-Black Tree implementation
 - `LibraryManagementSystem.h/cpp`: Library system interface
+- `LibraryGUI.h/cpp`: Library system graphic interface
 - `main.cpp`: Interactive menu-driven program
 - `Makefile`: Build automation
 
