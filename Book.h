@@ -7,6 +7,7 @@
 class Book {
 private:
     int isbn;
+    int copyId;
     std::string title;
     std::string author;
     int year;
@@ -15,10 +16,12 @@ private:
 public:
     // Constructor
     Book(int isbn = 0, const std::string& title = "", 
-         const std::string& author = "", int year = 0, bool available = true);
+         const std::string& author = "", int year = 0, bool available = true,
+         int copyId = 0);
     
     // Getters
     int getISBN() const { return isbn; }
+    int getCopyId() const { return copyId; }
     std::string getTitle() const { return title; }
     std::string getAuthor() const { return author; }
     int getYear() const { return year; }
@@ -27,10 +30,16 @@ public:
     // Setters
     void setAvailability(bool available) { isAvailable = available; }
     
-    // Comparison operators (based on ISBN)
-    bool operator<(const Book& other) const { return isbn < other.isbn; }
-    bool operator>(const Book& other) const { return isbn > other.isbn; }
-    bool operator==(const Book& other) const { return isbn == other.isbn; }
+    // Comparison operators (based on ISBN, then copy id)
+    bool operator<(const Book& other) const {
+        return isbn < other.isbn || (isbn == other.isbn && copyId < other.copyId);
+    }
+    bool operator>(const Book& other) const {
+        return isbn > other.isbn || (isbn == other.isbn && copyId > other.copyId);
+    }
+    bool operator==(const Book& other) const {
+        return isbn == other.isbn && copyId == other.copyId;
+    }
     
     // Display
     void display() const;
