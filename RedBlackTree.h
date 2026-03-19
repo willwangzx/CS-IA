@@ -55,9 +55,28 @@ public:
     }
     template <typename Func>
     void inorderTraversal(Func func) const;
+    template <typename Func>
+    RBNode<T>* findFirst(Func func);
 };
 
 // Implementation
+template <typename T, typename Func>
+RBNode<T>* findFirstHelper(RBNode<T>* node, RBNode<T>* nil, Func func) {
+    if (node == nil) {
+        return nullptr;
+    }
+
+    if (RBNode<T>* leftMatch = findFirstHelper(node->left, nil, func)) {
+        return leftMatch;
+    }
+
+    if (func(node->data)) {
+        return node;
+    }
+
+    return findFirstHelper(node->right, nil, func);
+}
+
 template <typename T>
 RedBlackTree<T>::RedBlackTree() {
     nil = new RBNode<T>(T());
@@ -376,5 +395,11 @@ void RedBlackTree<T>::inorderHelperFunc(RBNode<T>* node, Func func) const {
         func(node->data);
         inorderHelperFunc(node->right, func);
     }
+}
+
+template <typename T>
+template <typename Func>
+RBNode<T>* RedBlackTree<T>::findFirst(Func func) {
+    return findFirstHelper(root, nil, func);
 }
 #endif
