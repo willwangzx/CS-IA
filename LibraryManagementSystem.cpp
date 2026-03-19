@@ -16,79 +16,100 @@ LibraryManagementSystem::LibraryManagementSystem() {
     }*/
 }
 
-void LibraryManagementSystem::addBook(int isbn, const std::string& title, 
+int LibraryManagementSystem::getNextCopyId(int isbn) const {
+    int maxCopyId = 0;
+    bookTree.inorderTraversal([isbn, &maxCopyId](const Book& book) {
+        if (book.getISBN() == isbn && book.getCopyId() > maxCopyId) {
+            maxCopyId = book.getCopyId();
+        }
+    });
+    return maxCopyId + 1;
+}
+
+RBNode<Book>* LibraryManagementSystem::findBookNode(int isbn) {
+    return bookTree.findFirst([isbn](const Book& book) {
+        return book.getISBN() == isbn;
+    });
+}
+
+RBNode<Book>* LibraryManagementSystem::findAvailableBookNode(int isbn) {
+    return bookTree.findFirst([isbn](const Book& book) {
+        return book.getISBN() == isbn && book.getAvailability();
+    });
+}
+
+void LibraryManagementSystem::addBook(int isbn, const std::string& title,
                                       const std::string& author, int year) {
-    Book newBook(isbn, title, author, year);
-    
-    // Check if book already exists
-    if (findBook(isbn) != nullptr) {
-        std::cout << "Book with ISBN " << isbn << " already exists in the library." << std::endl;
-        return;
-    }
-    
+    Book newBook(isbn, title, author, year, true, getNextCopyId(isbn));
     bookTree.insert(newBook);
-    std::cout << "Book added successfully: " << title << std::endl;
+    std::cout << "Book added successfully: " << title
+              << " (copy " << newBook.getCopyId() << ")" << std::endl;
     saveToFile("library.dat");
 }
 
 void LibraryManagementSystem::removeBook(int isbn) {
-    Book* book = findBook(isbn);
-    
-    if (book == nullptr) {
+    RBNode<Book>* node = findBookNode(isbn);
+
+    if (node == nullptr) {
         std::cout << "Book with ISBN " << isbn << " not found." << std::endl;
         return;
     }
-    
-    Book tempBook(isbn, "", "", 0);
-    bookTree.remove(tempBook);
-    std::cout << "Book with ISBN " << isbn << " removed successfully." << std::endl;
+
+    Book targetBook = node->data;
+    bookTree.remove(targetBook);
+    std::cout << "Book with ISBN " << isbn << " removed successfully"
+              << " (copy " << targetBook.getCopyId() << ")." << std::endl;
     saveToFile("library.dat");
 }
 
 void LibraryManagementSystem::checkoutBook(int isbn) {
-    RBNode<Book>* node = bookTree.search(Book(isbn, "", "", 0));
-    
+    RBNode<Book>* node = findAvailableBookNode(isbn);
+
     if (node == nullptr) {
-        std::cout << "Book with ISBN " << isbn << " not found." << std::endl;
+        RBNode<Book>* existingNode = findBookNode(isbn);
+        if (existingNode == nullptr) {
+            std::cout << "Book with ISBN " << isbn << " not found." << std::endl;
+        } else {
+            std::cout << "All copies of ISBN " << isbn << " are already checked out." << std::endl;
+        }
         return;
     }
-    
-    if (!node->data.getAvailability()) {
-        std::cout << "Book is already checked out." << std::endl;
-        return;
-    }
-    
+
     node->data.setAvailability(false);
-    std::cout << "Book checked out successfully: " << node->data.getTitle() << std::endl;
+    std::cout << "Book checked out successfully: " << node->data.getTitle()
+              << " (copy " << node->data.getCopyId() << ")" << std::endl;
     saveToFile("library.dat");
 }
 
 void LibraryManagementSystem::returnBook(int isbn) {
-    RBNode<Book>* node = bookTree.search(Book(isbn, "", "", 0));
-    
+    RBNode<Book>* node = bookTree.findFirst([isbn](const Book& book) {
+        return book.getISBN() == isbn && !book.getAvailability();
+    });
+
     if (node == nullptr) {
-        std::cout << "Book with ISBN " << isbn << " not found." << std::endl;
+        RBNode<Book>* existingNode = findBookNode(isbn);
+        if (existingNode == nullptr) {
+            std::cout << "Book with ISBN " << isbn << " not found." << std::endl;
+        } else {
+            std::cout << "All copies of ISBN " << isbn << " are already available in the library." << std::endl;
+        }
         return;
     }
-    
-    if (node->data.getAvailability()) {
-        std::cout << "Book is already available in the library." << std::endl;
-        return;
-    }
-    
+
     node->data.setAvailability(true);
-    std::cout << "Book returned successfully: " << node->data.getTitle() << std::endl;
+    std::cout << "Book returned successfully: " << node->data.getTitle()
+              << " (copy " << node->data.getCopyId() << ")" << std::endl;
     saveToFile("library.dat");
 }
 
 void LibraryManagementSystem::displayBook(int isbn) {
     Book* book = findBook(isbn);
-    
+
     if (book == nullptr) {
         std::cout << "Book with ISBN " << isbn << " not found." << std::endl;
         return;
     }
-    
+
     book->display();
 }
 
@@ -97,8 +118,8 @@ void LibraryManagementSystem::displayAllBooks() {
         std::cout << "The library is empty." << std::endl;
         return;
     }
-    
-    std::cout << "\n========== Library Catalog ==========" << std::endl;
+
+    std::cout << "\n========== Library Catalog ==========\n";
     bookTree.inorderTraversal();
     std::cout << "====================================\n" << std::endl;
 }
@@ -134,7 +155,7 @@ void LibraryManagementSystem::loadFromFile(const std::string& filename) {
         if (!std::getline(ss, token, ',')) continue;
         bool available = (token == "1");
 
-        Book book(isbn, title, author, year, available);
+        Book book(isbn, title, author, year, available, getNextCopyId(isbn));
         bookTree.insert(book);
     }
     file.close();
@@ -158,6 +179,6 @@ void LibraryManagementSystem::forEachBook(std::function<void(const Book&)> func)
 }
 
 Book* LibraryManagementSystem::findBook(int isbn) {
-    RBNode<Book>* node = bookTree.search(Book(isbn, "", "", 0));
+    RBNode<Book>* node = findBookNode(isbn);
     return (node != nullptr) ? &(node->data) : nullptr;
 }

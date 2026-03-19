@@ -9,6 +9,10 @@ class LibraryManagementSystem {
 private:
     RedBlackTree<Book> bookTree;
 
+    int getNextCopyId(int isbn) const;
+    RBNode<Book>* findBookNode(int isbn);
+    RBNode<Book>* findAvailableBookNode(int isbn);
+
 public:
     LibraryManagementSystem();
     
