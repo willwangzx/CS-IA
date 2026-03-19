@@ -28,9 +28,27 @@ This ensures the tree remains balanced, guaranteeing O(log n) performance.
 - `LibraryManagementSystem.h/cpp`: Library system interface
 - `LibraryGUI.h/cpp`: Library system graphic interface
 - `main.cpp`: Interactive menu-driven program
-- `Makefile`: Build automation
+- `Makefile`: Legacy GNU Make build automation
+- `CMakeLists.txt`: Cross-platform CMake build, install, and packaging configuration
 
 ## Compilation
+
+### Using CMake (recommended for multiplatform builds)
+```bash
+cmake -S . -B build
+cmake --build build
+```
+
+Install into a staging directory:
+```bash
+cmake --install build --prefix ./dist
+```
+
+Create a distributable archive with CPack:
+```bash
+cd build
+cpack
+```
 
 ### Using Make:
 ```bash
@@ -39,13 +57,18 @@ make
 
 ### Manual Compilation:
 ```bash
-g++ -std=c++11 -Wall -Wextra -o library_system main.cpp Book.cpp LibraryManagementSystem.cpp
+g++ -std=c++17 -Wall -Wextra -o library_system main.cpp Book.cpp LibraryManagementSystem.cpp
 ```
 
 ## Running the Program
 
 ```bash
 ./library_system
+```
+
+Or using CMake:
+```bash
+./build/library_system
 ```
 
 Or using Make:
