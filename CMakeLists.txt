@@ -1,0 +1,103 @@
+cmake_minimum_required(VERSION 3.16)
+
+project(LibraryManagementSystem VERSION 1.0.0 LANGUAGES CXX)
+
+include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
+
+option(BUILD_CONSOLE_APP "Build the console application" ON)
+option(BUILD_GUI_APP "Build the SFML GUI application when dependencies are available" ON)
+option(ENABLE_WARNINGS "Enable compiler warnings" ON)
+set(LIBRARY_GUI_DEFAULT_FONT "" CACHE STRING "Optional default font path for the GUI application")
+
+set(LIBRARY_COMMON_SOURCES
+    Book.cpp
+    LibraryManagementSystem.cpp
+)
+
+set(LIBRARY_COMMON_HEADERS
+    Book.h
+    LibraryManagementSystem.h
+    RedBlackTree.h
+)
+
+add_library(library_core STATIC ${LIBRARY_COMMON_SOURCES} ${LIBRARY_COMMON_HEADERS})
+add_library(LibraryManagementSystem::core ALIAS library_core)
+
+target_include_directories(library_core
+    PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+)
+
+target_compile_features(library_core PUBLIC cxx_std_17)
+
+if(ENABLE_WARNINGS)
+    if(MSVC)
+        target_compile_options(library_core PRIVATE /W4 /permissive-)
+    else()
+        target_compile_options(library_core PRIVATE -Wall -Wextra -Wpedantic)
+    endif()
+endif()
+
+if(BUILD_CONSOLE_APP)
+    add_executable(library_system main.cpp)
+    target_link_libraries(library_system PRIVATE library_core)
+    set_target_properties(library_system PROPERTIES OUTPUT_NAME library_system)
+
+    install(TARGETS library_system RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+endif()
+
+set(GUI_TARGET_BUILT FALSE)
+if(BUILD_GUI_APP)
+    find_package(SFML 3 QUIET COMPONENTS Graphics Window System)
+
+    if(SFML_FOUND)
+        set(SFML_GUI_LIBS SFML::Graphics SFML::Window SFML::System)
+    else()
+        find_package(SFML 2.5 QUIET COMPONENTS graphics window system)
+        if(SFML_FOUND)
+            set(SFML_GUI_LIBS sfml-graphics sfml-window sfml-system)
+        endif()
+    endif()
+
+    if(SFML_FOUND)
+        add_executable(library_system_gui main_gui.cpp LibraryGUI.cpp)
+        target_link_libraries(library_system_gui PRIVATE library_core ${SFML_GUI_LIBS})
+        target_compile_definitions(library_system_gui PRIVATE LIBRARY_GUI_DEFAULT_FONT="$<IF:$<BOOL:${LIBRARY_GUI_DEFAULT_FONT}>,${LIBRARY_GUI_DEFAULT_FONT},>")
+        set_target_properties(library_system_gui PROPERTIES OUTPUT_NAME library_system_gui)
+        set(GUI_TARGET_BUILT TRUE)
+
+        install(TARGETS library_system_gui RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+    else()
+        message(WARNING "SFML was not found. The GUI target will not be generated. Install SFML or set BUILD_GUI_APP=OFF.")
+    endif()
+endif()
+
+install(TARGETS library_core
+    EXPORT LibraryManagementSystemTargets
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+)
+
+install(FILES ${LIBRARY_COMMON_HEADERS} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/library-management-system)
+
+install(EXPORT LibraryManagementSystemTargets
+    FILE LibraryManagementSystemTargets.cmake
+    NAMESPACE LibraryManagementSystem::
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/LibraryManagementSystem
+)
+
+set(CPACK_PACKAGE_NAME "LibraryManagementSystem")
+set(CPACK_PACKAGE_VENDOR "OpenAI")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Console and optional SFML GUI library management system")
+set(CPACK_PACKAGE_VERSION ${PROJECT_VERSION})
+set(CPACK_RESOURCE_FILE_README "${CMAKE_CURRENT_SOURCE_DIR}/README.md")
+if(WIN32)
+    set(CPACK_GENERATOR "ZIP")
+elseif(APPLE)
+    set(CPACK_GENERATOR "DragNDrop")
+else()
+    set(CPACK_GENERATOR "TGZ")
+endif()
+include(CPack)

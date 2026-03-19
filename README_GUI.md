@@ -29,9 +29,9 @@ A modern graphical user interface for the Library Management System, built with 
 - **C++17 compiler** (g++ 7.0 or later)
 
 ### System Requirements
-- Linux (Ubuntu 24 recommended)
-- X Window System for display
-- DejaVu Sans font (usually pre-installed)
+- Windows, macOS, or Linux
+- A desktop/windowing environment for GUI display
+- Any readable TrueType/OpenType collection font (the app checks common system locations and can be configured explicitly)
 
 ## Installation
 
@@ -65,6 +65,31 @@ sudo apt-get install fonts-dejavu
 ```
 
 ## Compilation
+
+### Using CMake (recommended)
+
+Build both console and GUI versions when SFML is available:
+```bash
+cmake -S . -B build
+cmake --build build
+```
+
+Build only the console version:
+```bash
+cmake -S . -B build -DBUILD_GUI_APP=OFF
+cmake --build build
+```
+
+Provide an explicit default GUI font path if your platform does not store fonts in a common location:
+```bash
+cmake -S . -B build -DLIBRARY_GUI_DEFAULT_FONT=/absolute/path/to/font.ttf
+```
+
+Create an installable staging directory or package:
+```bash
+cmake --install build --prefix ./dist
+cd build && cpack
+```
 
 ### Using the Makefile
 
@@ -215,12 +240,17 @@ Temporary notification system for user feedback.
 ## Troubleshooting
 
 ### Font Loading Error
-If you see "Error: Could not load font!", try:
+If you see "Error: Could not load a GUI font!", try:
 ```bash
-# Locate DejaVu font
-find /usr/share/fonts -name "DejaVuSans.ttf"
+# Linux/macOS example
+export LIBRARY_GUI_FONT=/absolute/path/to/font.ttf
+./build/library_system_gui
 
-# Update the path in main_gui.cpp
+# Or configure a default path at CMake configure time
+cmake -S . -B build -DLIBRARY_GUI_DEFAULT_FONT=/absolute/path/to/font.ttf
+
+# Find an installed font on Linux if needed
+find /usr/share/fonts -name "*.ttf"
 ```
 
 ### SFML Library Not Found
@@ -283,7 +313,8 @@ library-management-system/
 ├── LibraryGUI.h / LibraryGUI.cpp  # GUI implementation
 ├── main.cpp                       # Console entry point
 ├── main_gui.cpp                   # GUI entry point
-├── Makefile_complete              # Build system
+├── Makefile_complete              # Legacy Make build system
+├── CMakeLists.txt                 # Cross-platform CMake build system
 └── README_GUI.md                  # This file
 ```
 
