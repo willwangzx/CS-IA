@@ -1,183 +1,161 @@
-# Library Management System with Red-Black Tree
+# Library Management System
 
-A C++ implementation of a library management system using a Red-Black Tree data structure for efficient book storage and retrieval.
+A C++17 library management system built on top of a Red-Black Tree. The project now supports both a console application and an optional SFML GUI, persistent storage through `library.dat`, and multiple physical copies of the same ISBN.
 
-## Features
+## Current Highlights
 
-- **Efficient Operations**: O(log n) time complexity for insert, delete, and search operations
-- **Book Management**: Add, remove, and search for books
-- **Check-out System**: Track which books are available or checked out
-- **Sorted Display**: View all books in sorted order by ISBN
+- **Red-Black Tree core** for `O(log n)` insert, remove, and search operations.
+- **Persistent storage** via `library.dat`, which is loaded on startup and rewritten after mutating operations.
+- **Duplicate copy support** so the same ISBN can exist multiple times, each with its own internal copy ID.
+- **Two front ends**:
+  - `library_system` for console usage.
+  - `library_system_gui` for desktop usage when SFML is installed.
+- **Cross-platform CMake build** with optional GUI compilation, install rules, and CPack packaging.
 
-## Data Structure
+## Project Structure
 
-The system uses a **Red-Black Tree**, which is a self-balancing binary search tree with the following properties:
+| File | Purpose |
+|------|---------|
+| `Book.h` / `Book.cpp` | Book model with ISBN, title, author, year, availability, and copy ID |
+| `RedBlackTree.h` | Generic Red-Black Tree implementation |
+| `LibraryManagementSystem.h` / `.cpp` | Core library operations, persistence, and traversal helpers |
+| `main.cpp` | Console entry point |
+| `LibraryGUI.h` / `LibraryGUI.cpp` | GUI screens and reusable SFML UI widgets |
+| `main_gui.cpp` | GUI bootstrap and font discovery |
+| `CMakeLists.txt` | Recommended build, install, and packaging configuration |
+| `Makefile` / `Makefile_complete` | Legacy build workflows |
+| `setup.sh` | Linux helper script for SFML-related setup |
 
-1. Every node is either red or black
-2. The root is always black
-3. All leaves (NIL nodes) are black
-4. Red nodes cannot have red children
-5. Every path from root to leaf contains the same number of black nodes
+## What Changed From Earlier Versions
 
-This ensures the tree remains balanced, guaranteeing O(log n) performance.
+The current codebase behaves differently from the original classroom version:
 
-## Files
+- Books are **loaded from disk** at startup instead of always using built-in sample data.
+- Adding a second book with the same ISBN is allowed; it becomes a **new copy**.
+- Removing, checkout, and return operations work on the **first matching copy** for the ISBN, with availability-aware logic for checkout and return.
+- The GUI target is **optional** in CMake and only builds when SFML is detected.
+- The GUI can locate fonts using `LIBRARY_GUI_FONT`, the CMake cache variable `LIBRARY_GUI_DEFAULT_FONT`, or common system font paths.
 
-- `Book.h/cpp`: Book class representing library items
-- `RedBlackTree.h`: Template-based Red-Black Tree implementation
-- `LibraryManagementSystem.h/cpp`: Library system interface
-- `LibraryGUI.h/cpp`: Library system graphic interface
-- `main.cpp`: Interactive menu-driven program
-- `Makefile`: Legacy GNU Make build automation
-- `CMakeLists.txt`: Cross-platform CMake build, install, and packaging configuration
+## Build Instructions
 
-## Compilation
+### Recommended: CMake
 
-### Using CMake (recommended for multiplatform builds)
+Build the console app and, when SFML is available, the GUI app:
+
 ```bash
 cmake -S . -B build
 cmake --build build
 ```
 
+Build only the console application:
+
+```bash
+cmake -S . -B build -DBUILD_GUI_APP=OFF
+cmake --build build
+```
+
+Configure an explicit default GUI font path:
+
+```bash
+cmake -S . -B build -DLIBRARY_GUI_DEFAULT_FONT=/absolute/path/to/font.ttf
+```
+
 Install into a staging directory:
+
 ```bash
 cmake --install build --prefix ./dist
 ```
 
-Create a distributable archive with CPack:
+Create a distributable archive:
+
 ```bash
 cd build
 cpack
 ```
 
-### Using Make:
+### Legacy Makefiles
+
+Console-only build:
+
 ```bash
 make
 ```
 
-### Manual Compilation:
+Console + GUI build:
+
 ```bash
-g++ -std=c++17 -Wall -Wextra -o library_system main.cpp Book.cpp LibraryManagementSystem.cpp
+make -f Makefile_complete all
 ```
 
-## Running the Program
+## Running
+
+### Console
+
+```bash
+./build/library_system
+```
+
+Or, if using the makefile:
 
 ```bash
 ./library_system
 ```
 
-Or using CMake:
+### GUI
+
 ```bash
-./build/library_system
+./build/library_system_gui
 ```
 
-Or using Make:
+If the GUI cannot find a font automatically, set one explicitly:
+
 ```bash
-make run
+LIBRARY_GUI_FONT=/absolute/path/to/font.ttf ./build/library_system_gui
 ```
 
-## Usage
+## Runtime Behavior
 
-The program provides an interactive menu with the following options:
+### Persistence
 
-1. **Add a book**: Insert a new book into the library
-2. **Remove a book**: Delete a book from the library
-3. **Search for a book**: Find and display book details by ISBN
-4. **Check out a book**: Mark a book as checked out
-5. **Return a book**: Mark a book as available
-6. **Display all books**: Show all books in sorted order
-7. **Exit**: Quit the program
+The application reads from `library.dat` during `LibraryManagementSystem` construction. Any successful add, remove, checkout, or return operation rewrites that file.
 
-## Example Usage
+### Multiple Copies
 
-```
-===== Library Management System =====
-1. Add a book
-2. Remove a book
-3. Search for a book
-4. Check out a book
-5. Return a book
-6. Display all books
-7. Exit
-=====================================
-Enter your choice: 1
+Every book record has:
 
-Enter ISBN: 2001
-Enter title: Clean Code
-Enter author: Robert C. Martin
-Enter year: 2008
-Book added successfully: Clean Code
-```
+- **ISBN**: groups editions/copies logically.
+- **Copy ID**: assigned automatically per ISBN and used to distinguish duplicate copies.
+- **Availability**: tracked per copy.
 
-## Book Attributes
+Example:
 
-Each book contains:
-- **ISBN** (International Standard Book Number): Unique identifier
-- **Title**: Name of the book
-- **Author**: Book's author
-- **Year**: Publication year
-- **Availability**: Whether the book is available or checked out
+- First call to `addBook(1001, ...)` creates ISBN `1001`, copy `1`.
+- Second call to `addBook(1001, ...)` creates ISBN `1001`, copy `2`.
 
-## Red-Black Tree Operations
+### Search and Catalog Rules
 
-### Insert
-- Adds a new book maintaining Red-Black Tree properties
-- Time Complexity: O(log n)
+- `findBook` / console search returns the **first matching copy** for a given ISBN.
+- Checkout picks the **first available copy** for the ISBN.
+- Return picks the **first checked-out copy** for the ISBN.
+- Remove deletes the **first matching copy** for the ISBN.
+- Full catalog display is sorted by **ISBN, then copy ID**.
 
-### Delete
-- Removes a book while preserving tree balance
-- Time Complexity: O(log n)
+## Complexity
 
-### Search
-- Finds a book by ISBN
-- Time Complexity: O(log n)
+| Operation | Complexity |
+|-----------|------------|
+| Insert | `O(log n)` |
+| Remove | `O(log n)` |
+| Find first matching ISBN | `O(log n)` to locate structure-aware paths, with tree traversal helper used for predicate matches |
+| Display all books | `O(n)` |
+| Save catalog | `O(n)` |
 
-### Traversal
-- In-order traversal displays books sorted by ISBN
-- Time Complexity: O(n)
+## Development Notes
 
-## Implementation Details
-
-The Red-Black Tree uses:
-- **Sentinel NIL nodes**: Simplifies boundary conditions
-- **Rotations**: Left and right rotations for rebalancing
-- **Color flipping**: Maintains Red-Black properties during insertion/deletion
-- **Template-based design**: Can be used with any comparable data type
-
-## Complexity Analysis
-
-| Operation | Time Complexity | Space Complexity |
-|-----------|----------------|------------------|
-| Insert    | O(log n)       | O(1)             |
-| Delete    | O(log n)       | O(1)             |
-| Search    | O(log n)       | O(1)             |
-| Display All | O(n)         | O(log n)*        |
-
-*Due to recursion stack depth
-
-## Future Enhancements
-
-Potential improvements:
-- Search by title or author
-- Due date tracking for checked-out books
-- Fine calculation for overdue books
-- ~Persistent storage (file I/O)~(done)
-- User account management
-- Reservation system
-- Category/genre classification
-
-## Clean Up
-
-To remove compiled files:
-```bash
-make clean
-```
-
-## Author
-
-This project demonstrates the practical application of advanced data structures in real-world systems.
+- The console app still prints a startup message about sample books, but the actual source of truth is now `library.dat`.
+- The serialized file format currently stores ISBN, title, author, year, and availability. Copy IDs are regenerated while loading based on insertion order per ISBN.
+- `Makefile_complete` assumes SFML linker flags are already available on the system; CMake is more portable and is the preferred workflow.
 
 ## License
 
 Free to use for educational purposes.
-# CS-IA
