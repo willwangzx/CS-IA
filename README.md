@@ -30,7 +30,7 @@ A C++17 library management system built on top of a Red-Black Tree. The project 
 
 The current codebase behaves differently from the original classroom version:
 
-- Books are **loaded from disk** at startup instead of always using built-in sample data.
+- The backend loads `library.dat` at startup, but the **console app still seeds five sample books on every launch** after construction.
 - Adding a second book with the same ISBN is allowed; it becomes a **new copy**.
 - Removing, checkout, and return operations work on the **first matching copy** for the ISBN, with availability-aware logic for checkout and return.
 - The GUI target is **optional** in CMake and only builds when SFML is detected.
@@ -117,7 +117,7 @@ LIBRARY_GUI_FONT=/absolute/path/to/font.ttf ./build/library_system_gui
 
 ### Persistence
 
-The application reads from `library.dat` during `LibraryManagementSystem` construction. Any successful add, remove, checkout, or return operation rewrites that file.
+The backend reads from `library.dat` during `LibraryManagementSystem` construction. Any successful add, remove, checkout, or return operation rewrites that file. In the console app, startup also adds the five hard-coded sample books, so launching `main.cpp` can append duplicate sample copies and immediately rewrite `library.dat`.
 
 ### Multiple Copies
 
@@ -146,13 +146,13 @@ Example:
 |-----------|------------|
 | Insert | `O(log n)` |
 | Remove | `O(log n)` |
-| Find first matching ISBN | `O(log n)` to locate structure-aware paths, with tree traversal helper used for predicate matches |
+| Find first matching ISBN | `O(n)` in the current implementation because predicate-based lookup uses an in-order traversal helper |
 | Display all books | `O(n)` |
 | Save catalog | `O(n)` |
 
 ## Development Notes
 
-- The console app still prints a startup message about sample books, but the actual source of truth is now `library.dat`.
+- The console app does more than print a startup message: after loading `library.dat`, it inserts the five sample books every time it starts.
 - The serialized file format currently stores ISBN, title, author, year, and availability. Copy IDs are regenerated while loading based on insertion order per ISBN.
 - `Makefile_complete` assumes SFML linker flags are already available on the system; CMake is more portable and is the preferred workflow.
 

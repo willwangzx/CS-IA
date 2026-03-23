@@ -72,8 +72,11 @@ LIBRARY_GUI_FONT=/absolute/path/to/font.ttf ./build/library_system_gui
 
 ## 5. First Run Expectations
 
-### No built-in starter catalog guarantee
-The backend now loads from `library.dat`. If that file does not exist or is empty, the library starts empty.
+### Startup state depends on the front end
+- The shared backend loads from `library.dat`.
+- The **console app** then inserts five sample books every time it starts.
+- The **GUI app** does not auto-seed sample books.
+- If `library.dat` is missing and you launch the GUI first, it starts empty. If you launch the console first, those sample books are inserted and saved.
 
 ### Data is saved automatically
 Successful add, remove, checkout, and return operations rewrite `library.dat`.

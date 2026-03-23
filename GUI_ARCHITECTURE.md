@@ -18,6 +18,9 @@ LibraryGUI
 LibraryManagementSystem
   -> loads/saves library.dat
   -> stores Book objects in RedBlackTree<Book>
+
+main.cpp only
+  -> seeds five sample books after backend construction
 ```
 
 ## Main Objects

@@ -124,10 +124,11 @@ Behavior:
 
 ## Data and Persistence
 
-The GUI no longer depends on hard-coded sample books. Instead:
+The GUI itself does not inject sample books. Instead:
 - the backend loads `library.dat` at startup
 - successful mutations save back to `library.dat`
-- changes made in the GUI are visible to the console app and vice versa
+- changes made in the GUI are visible to the console app and vice versa across runs through the shared file
+- if the console app has been launched before, its startup seeding will already have added the five sample books to persisted data
 
 ## Known Limitations
 

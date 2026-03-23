@@ -27,7 +27,7 @@ This project is a C++17 library manager with a Red-Black Tree backend, persisten
 ## 3. Important Recent Changes
 
 ### Persistent Storage
-The system now calls `loadFromFile("library.dat")` in the `LibraryManagementSystem` constructor and writes the catalog back after successful mutations.
+The system calls `loadFromFile("library.dat")` in the `LibraryManagementSystem` constructor and writes the catalog back after successful mutations. The console front end then inserts its five sample books immediately after backend construction, which means console startup can change persisted state before the user selects a menu action.
 
 ### Duplicate ISBN Support
 Books are no longer unique by ISBN alone. Comparison operators now use **ISBN first, then copy ID**, which allows multiple nodes with the same ISBN to coexist in the Red-Black Tree.
@@ -148,6 +148,7 @@ Font resolution order:
 - The console app still prints a message about initializing sample books, but the backend actually loads from `library.dat` first.
 - GUI success messages are optimistic in some flows; backend failures may still print to stdout rather than surfacing detailed GUI errors.
 - Search and mutation by ISBN operate on the first matching copy, not on every copy.
+- The console entry point still seeds five sample books on every launch, even after loading persisted data.
 
 ## 10. Recommended Next Improvements
 
