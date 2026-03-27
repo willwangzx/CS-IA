@@ -1,297 +1,163 @@
-# GUI Architecture and Screen Layout
+# GUI Architecture
 
-## Class Hierarchy
+This document summarizes the GUI structure as it exists in the current codebase.
 
-```
-LibraryGUI (Main Controller)
-│
-├── LibraryManagementSystem (Backend)
-│   └── RedBlackTree<Book> (Data Structure)
-│       └── Book (Data Model)
-│
-├── UI Components
-│   ├── Button
-│   ├── InputBox
-│   ├── ScrollableList
-│   └── MessageBox
-│
-└── Screens
-    ├── MAIN_MENU
-    ├── ADD_BOOK
-    ├── REMOVE_BOOK
-    ├── SEARCH_BOOK
-    ├── CHECKOUT_BOOK
-    ├── RETURN_BOOK
-    └── VIEW_ALL
+## High-Level Structure
+
+```text
+main_gui.cpp
+  -> discovers a usable font
+  -> constructs LibraryGUI
+  -> starts the event/render loop
+
+LibraryGUI
+  -> owns the SFML window
+  -> owns the LibraryManagementSystem backend
+  -> manages screen state and UI widgets
+
+LibraryManagementSystem
+  -> loads/saves library.dat
+  -> stores Book objects in RedBlackTree<Book>
+
+main.cpp only
+  -> seeds five sample books after backend construction
 ```
 
-## Screen Layouts
+## Main Objects
 
-### Main Menu Screen
-```
-┌────────────────────────────────────────────────────────┐
-│                                                        │
-│  ████████  Library Management System  ████████        │ ← Header Bar
-│                                                        │
-├────────────────────────────────────────────────────────┤
-│                                                        │
-│                                                        │
-│              ┌──────────────────────┐                 │
-│              │     Add Book         │                 │
-│              └──────────────────────┘                 │
-│                                                        │
-│              ┌──────────────────────┐                 │
-│              │    Remove Book       │                 │
-│              └──────────────────────┘                 │
-│                                                        │
-│              ┌──────────────────────┐                 │
-│              │    Search Book       │                 │
-│              └──────────────────────┘                 │
-│                                                        │
-│              ┌──────────────────────┐                 │
-│              │   Checkout Book      │                 │
-│              └──────────────────────┘                 │
-│                                                        │
-│              ┌──────────────────────┐                 │
-│              │    Return Book       │                 │
-│              └──────────────────────┘                 │
-│                                                        │
-│              ┌──────────────────────┐                 │
-│              │   View All Books     │                 │
-│              └──────────────────────┘                 │
-│                                                        │
-└────────────────────────────────────────────────────────┘
-```
+### `LibraryGUI`
+Responsible for:
+- window creation
+- screen switching
+- widget initialization per screen
+- event routing
+- render dispatch
+- hover-state updates
+- holding the backend instance
 
-### Add Book Screen
-```
-┌────────────────────────────────────────────────────────┐
-│  ████████  Library Management System  ████████        │
-├────────────────────────────────────────────────────────┤
-│                                                        │
-│                    Add New Book                        │
-│                                                        │
-│  ISBN:   ┌────────────────────────────────┐          │
-│          │ Enter ISBN                     │          │
-│          └────────────────────────────────┘          │
-│                                                        │
-│  Title:  ┌────────────────────────────────┐          │
-│          │ Enter Title                    │          │
-│          └────────────────────────────────┘          │
-│                                                        │
-│  Author: ┌────────────────────────────────┐          │
-│          │ Enter Author                   │          │
-│          └────────────────────────────────┘          │
-│                                                        │
-│  Year:   ┌────────────────────────────────┐          │
-│          │ Enter Year                     │          │
-│          └────────────────────────────────┘          │
-│                                                        │
-│                                                        │
-│  ┌──────────┐              ┌──────────┐              │
-│  │   Back   │              │ Add Book │              │
-│  └──────────┘              └──────────┘              │
-│                                                        │
-│          ┌────────────────────────┐                   │
-│          │  Success Message!      │ ← Message Box    │
-│          └────────────────────────┘                   │
-└────────────────────────────────────────────────────────┘
+### `Button`
+A reusable clickable widget with:
+- normal color
+- hover color
+- active color
+
+### `InputBox`
+A lightweight text input widget with:
+- focus state
+- placeholder rendering
+- simple character entry
+- blinking cursor effect
+
+### `ScrollableList`
+Used for search results and the full catalog view.
+
+Characteristics:
+- stores rendered text rows
+- supports vertical mouse-wheel scrolling
+- displays up to 10 items at once
+
+### `MessageBox`
+A temporary notification overlay.
+
+Characteristics:
+- fixed position near the lower part of the window
+- configurable duration
+- auto-hides after timeout
+
+## Screen State Machine
+
+`LibraryGUI` uses this enum:
+
+```cpp
+enum class Screen {
+    MAIN_MENU,
+    ADD_BOOK,
+    REMOVE_BOOK,
+    SEARCH_BOOK,
+    CHECKOUT_BOOK,
+    RETURN_BOOK,
+    VIEW_ALL
+};
 ```
 
-### Search/View Screen
-```
-┌────────────────────────────────────────────────────────┐
-│  ████████  Library Management System  ████████        │
-├────────────────────────────────────────────────────────┤
-│                                                        │
-│                    Search Book                         │
-│                                                        │
-│  ISBN:   ┌────────────────────────────────┐          │
-│          │ Enter ISBN to search           │          │
-│          └────────────────────────────────┘          │
-│                                                        │
-│  ┌──────────────────────────────────────────────┐    │
-│  │ Results:                                     │    │
-│  │ ISBN: 1001 | The Great Gatsby | ...         │    │
-│  │                                              │    │
-│  │                                              │    │
-│  │                       ↕ Scroll               │    │
-│  │                                              │    │
-│  │                                              │    │
-│  │                                              │    │
-│  └──────────────────────────────────────────────┘    │
-│                                                        │
-│  ┌──────────┐              ┌──────────┐              │
-│  │   Back   │              │  Search  │              │
-│  └──────────┘              └──────────┘              │
-└────────────────────────────────────────────────────────┘
-```
+Each screen has:
+- an initializer
+- an event handler
+- a renderer
 
-### View All Books Screen
-```
-┌────────────────────────────────────────────────────────┐
-│  ████████  Library Management System  ████████        │
-├────────────────────────────────────────────────────────┤
-│                                                        │
-│               All Books in Library                     │
-│                                                        │
-│  ┌────────────────────────────────────────────────┐  │
-│  │ ISBN: 1001 | The Great Gatsby | F. Scott ... │  │
-│  │ ISBN: 1002 | To Kill a Mockingbird | Harp... │  │
-│  │ ISBN: 1003 | 1984 | George Orwell | 1949 ... │  │
-│  │ ISBN: 1004 | Pride and Prejudice | Jane ... │  │
-│  │ ISBN: 1005 | The Catcher in the Rye | J.D...│  │
-│  │                                                │  │
-│  │                       ↕ Scroll                 │  │
-│  │                                                │  │
-│  │                                                │  │
-│  │                                                │  │
-│  │                                                │  │
-│  │                                                │  │
-│  └────────────────────────────────────────────────┘  │
-│                                                        │
-│              ┌──────────────────────┐                 │
-│              │        Back          │                 │
-│              └──────────────────────┘                 │
-└────────────────────────────────────────────────────────┘
+## Backend Integration
+
+The GUI talks directly to `LibraryManagementSystem`.
+
+Current backend interactions:
+- `addBook(isbn, title, author, year)`
+- `removeBook(isbn)`
+- `findBook(isbn)`
+- `checkoutBook(isbn)`
+- `returnBook(isbn)`
+- `forEachBook(...)`
+
+Important behavioral detail:
+- operations by ISBN act on the **first relevant copy**, not on all copies
+
+## Runtime Font Bootstrap
+
+`main_gui.cpp` is responsible for font selection before `LibraryGUI::run()` starts.
+
+Resolution order:
+1. `LIBRARY_GUI_FONT`
+2. compile-time default from `LIBRARY_GUI_DEFAULT_FONT`
+3. platform-specific fallback paths
+
+This keeps font setup flexible across Linux, macOS, and Windows.
+
+## Rendering Model
+
+The GUI uses a straightforward immediate-style redraw loop:
+- poll SFML events
+- route events based on the current screen
+- update hover/message state
+- clear and redraw the full frame
+- display the rendered frame
+
+## Current Data Flow Examples
+
+### Add Book
+```text
+User enters ISBN/title/author/year
+  -> Add Book screen parses values
+  -> LibraryManagementSystem::addBook(...)
+  -> backend assigns next copy ID for the ISBN
+  -> backend saves library.dat
+  -> GUI shows a temporary success message
 ```
 
-## UI Component States
-
-### Button States
-```
-Normal State:        Hover State:         Active State:
-┌────────────┐      ┌────────────┐      ┌────────────┐
-│   Click    │  →   │   Click    │  →   │   Click    │
-│  (Blue)    │      │ (Lt Blue)  │      │ (Dk Blue)  │
-└────────────┘      └────────────┘      └────────────┘
+### View All
+```text
+User opens View All Books
+  -> GUI rebuilds ScrollableList from forEachBook(...)
+  -> RedBlackTree inorder traversal produces sorted rows
+  -> rows display ISBN/title/author/year/status
 ```
 
-### InputBox States
-```
-Inactive:            Active (Focused):
-┌──────────────┐    ┌──────────────┐
-│ Placeholder  │    │ Text input|  │ ← Blinking cursor
-│  (Gray)      │    │  (Blue)      │ ← Blue border
-└──────────────┘    └──────────────┘
-```
-
-## Event Flow
-
-### Add Book Flow
-```
-User Action                System Response
-───────────                ───────────────
-1. Click "Add Book"    →   Load Add Book Screen
-2. Click ISBN field    →   Activate input (blue border)
-3. Type "2001"         →   Display characters
-4. Click Title field   →   Move focus to Title
-5. Type "Clean Code"   →   Display characters
-6. ... (Author, Year)  →   Continue input
-7. Click "Add Book"    →   Validate inputs
-                       →   Add to Red-Black Tree
-                       →   Show success message
-                       →   Clear input fields
-8. Click "Back"        →   Return to Main Menu
+### Search
+```text
+User enters ISBN
+  -> GUI calls findBook(isbn)
+  -> first matching copy is returned
+  -> result list shows one row or a not-found row
 ```
 
-### Search Flow
-```
-User Action                System Response
-───────────                ───────────────
-1. Click "Search Book" →   Load Search Screen
-2. Enter ISBN          →   Accept input
-3. Click "Search"      →   Query Red-Black Tree
-                       →   O(log n) search
-                       →   Display result in list
-                       →   Show message box
-```
+## Practical Limitations
 
-## Color Palette
+- The GUI currently mixes presentation with backend calls in the same class.
+- Backend stdout messages are not always translated into precise GUI feedback.
+- Search results are single-row even when multiple copies exist for one ISBN.
+- `View All` logs an "Adding to list" line to stdout for each book while the list is rebuilt.
 
-```
-Primary Colors:
-├── Background:    RGB(245, 245, 245) - Light Gray
-├── Header:        RGB(70, 130, 180)  - Steel Blue
-├── Button Normal: RGB(70, 130, 180)  - Steel Blue
-├── Button Hover:  RGB(100, 149, 237) - Cornflower Blue
-└── Button Active: RGB(65, 105, 225)  - Royal Blue
+## Suggested Refactors
 
-Text Colors:
-├── Header Text:   RGB(255, 255, 255) - White
-├── Body Text:     RGB(0, 0, 0)       - Black
-└── Placeholder:   RGB(150, 150, 150) - Medium Gray
-
-Border Colors:
-├── Normal:        RGB(100, 100, 100) - Dark Gray
-└── Focus:         RGB(70, 130, 180)  - Steel Blue
-```
-
-## Window Dimensions
-
-```
-Main Window:       900 x 700 pixels
-Header Bar:        900 x 80 pixels
-Content Area:      900 x 620 pixels
-
-Button Standard:   300 x 50 pixels
-Button Small:      150 x 50 pixels
-Input Box:         400 x 40 pixels
-Scrollable List:   800 x 450 pixels
-Message Box:       400 x 80 pixels
-```
-
-## Font Specifications
-
-```
-Title (Header):    32pt, Bold, White
-Screen Title:      24pt, Bold, Black
-Button Text:       18pt, Regular, White
-Label Text:        18pt, Regular, Black
-Input Text:        16pt, Regular, Black
-List Text:         14pt, Regular, Black
-Message Text:      16pt, Regular, Black
-```
-
-## Animation & Effects
-
-```
-Hover Animation:
-  Duration: Instant (on mouse move)
-  Effect: Color transition
-
-Cursor Blink:
-  Duration: 0.5 seconds on/off
-  Effect: Show/hide pipe character "|"
-
-Message Box:
-  Duration: 3 seconds
-  Effect: Fade out (auto-hide)
-
-Scroll:
-  Duration: Instant (on wheel)
-  Effect: Shift visible items
-```
-
-## Memory Layout
-
-```
-LibraryGUI Object
-├── window (SFML RenderWindow)
-├── library (LibraryManagementSystem)
-│   └── bookTree (RedBlackTree<Book>)
-│       └── nodes (dynamic allocation)
-├── font (SFML Font)
-├── mainMenuButtons (vector of unique_ptr<Button>)
-├── inputBoxes (vector of unique_ptr<InputBox>)
-├── bookList (unique_ptr<ScrollableList>)
-├── messageBox (unique_ptr<MessageBox>)
-├── backButton (unique_ptr<Button>)
-└── submitButton (unique_ptr<Button>)
-```
-
-This architecture ensures:
-- Clean separation of concerns
-- Efficient memory management with smart pointers
-- Responsive user interface
-- Scalable design for future enhancements
+- Separate backend result reporting from stdout so the GUI can show accurate statuses.
+- Add a copy-aware search/listing mode for duplicate ISBNs.
+- Move screen-specific form validation into helpers.
+- Remove debug stdout logging from the `VIEW_ALL` initialization path.

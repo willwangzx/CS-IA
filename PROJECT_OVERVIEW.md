@@ -1,387 +1,159 @@
-# Library Management System - Complete Project Overview
+# Library Management System - Project Overview
 
-A professional library management system featuring both command-line and graphical interfaces, built with C++17 and SFML 3.0.2, utilizing a Red-Black Tree for efficient data management.
+This project is a C++17 library manager with a Red-Black Tree backend, persistent file storage, duplicate-copy handling, a console UI, and an optional SFML desktop GUI.
 
-## 📦 Project Contents
+## 1. System Overview
 
-### Core Files
-| File | Description |
-|------|-------------|
-| `Book.h` / `Book.cpp` | Book entity with ISBN, title, author, year, and availability |
-| `RedBlackTree.h` | Self-balancing binary search tree template implementation |
-| `LibraryManagementSystem.h` / `.cpp` | Library business logic and operations |
+### Core Capabilities
+- Store books in a balanced Red-Black Tree.
+- Load and save the catalog to `library.dat`.
+- Support multiple copies of the same ISBN.
+- Track availability on a per-copy basis.
+- Expose both console and GUI workflows over the same backend.
 
-### Console Interface
-| File | Description |
-|------|-------------|
-| `main.cpp` | Console-based interactive menu program |
+### Current Front Ends
+- **Console app**: `main.cpp`
+- **GUI app**: `main_gui.cpp` + `LibraryGUI.cpp`
 
-### GUI Interface (SFML 3.0.2)
-| File | Description |
-|------|-------------|
-| `LibraryGUI.h` / `LibraryGUI.cpp` | Complete GUI implementation with screens and components |
-| `main_gui.cpp` | GUI application entry point |
+## 2. Main Components
 
-### Build System
-| File | Description |
-|------|-------------|
-| `Makefile` | Original console-only makefile |
-| `Makefile_complete` | Full makefile for both console and GUI versions |
-| `setup.sh` | Automated installation script for dependencies |
+| Component | Description |
+|-----------|-------------|
+| `Book` | Data model containing ISBN, copy ID, title, author, year, and availability |
+| `RedBlackTree<Book>` | Ordered storage layer keyed by ISBN and copy ID |
+| `LibraryManagementSystem` | Business logic for add/remove/search/checkout/return, persistence, and iteration |
+| `LibraryGUI` | SFML-based interface with menu screens, inputs, and message boxes |
 
-### Documentation
-| File | Description |
-|------|-------------|
-| `README.md` | Original console version documentation |
-| `README_GUI.md` | Comprehensive GUI documentation |
-| `QUICKSTART.md` | Quick start guide for new users |
-| `GUI_ARCHITECTURE.md` | Detailed architecture and design documentation |
+## 3. Important Recent Changes
 
-## 🎯 Features
+### Persistent Storage
+The system calls `loadFromFile("library.dat")` in the `LibraryManagementSystem` constructor and writes the catalog back after successful mutations. The console front end then inserts its five sample books immediately after backend construction, which means console startup can change persisted state before the user selects a menu action.
 
-### Data Structure
-- **Red-Black Tree** implementation
-  - Self-balancing binary search tree
-  - O(log n) insert, delete, and search operations
-  - Maintains sorted order automatically
-  - Efficient for large datasets
+### Duplicate ISBN Support
+Books are no longer unique by ISBN alone. Comparison operators now use **ISBN first, then copy ID**, which allows multiple nodes with the same ISBN to coexist in the Red-Black Tree.
 
-### Console Features
-- Interactive menu-driven interface
-- Add/remove books
-- Search by ISBN
-- Checkout/return tracking
-- Display all books in sorted order
-- Input validation
+### Copy-Aware Operations
+- **Add**: assigns the next copy ID for that ISBN.
+- **Remove**: removes the first matching copy.
+- **Checkout**: targets the first available copy.
+- **Return**: targets the first checked-out copy.
+- **Search**: returns the first matching copy.
 
-### GUI Features
-- Modern, professional interface
-- Interactive buttons with hover effects
-- Text input fields with focus indicators
-- Scrollable book lists
-- Real-time message notifications
-- Mouse and keyboard support
-- 60 FPS smooth rendering
+### Modern Build Flow
+CMake is now the preferred build system. It can:
+- Build the shared core logic as a static library.
+- Optionally build the GUI only when SFML is found.
+- Install headers, binaries, and CMake export targets.
+- Package releases with CPack.
 
-### Operations
-- **Add Book**: Insert new books with complete information
-- **Remove Book**: Delete books by ISBN
-- **Search Book**: Find books quickly (O(log n))
-- **Checkout Book**: Mark books as checked out
-- **Return Book**: Mark books as available
-- **View All**: Display complete catalog in sorted order
+## 4. File Map
 
-## 🏗️ Architecture
+### Backend
+| File | Role |
+|------|------|
+| `Book.h` / `Book.cpp` | Book representation and serialization |
+| `RedBlackTree.h` | Tree storage and traversal utilities |
+| `LibraryManagementSystem.h` / `.cpp` | Backend API and persistence logic |
 
-### Class Hierarchy
+### Console
+| File | Role |
+|------|------|
+| `main.cpp` | Menu-driven command-line UI |
+
+### GUI
+| File | Role |
+|------|------|
+| `LibraryGUI.h` / `LibraryGUI.cpp` | SFML widgets and screen management |
+| `main_gui.cpp` | GUI startup and font loading strategy |
+
+### Tooling and Docs
+| File | Role |
+|------|------|
+| `CMakeLists.txt` | Primary build configuration |
+| `Makefile_complete` | Legacy two-target make workflow |
+| `setup.sh` | Linux helper for installing SFML dependencies |
+| `README.md` | Main project documentation |
+| `README_GUI.md` | GUI-specific guide |
+| `QUICKSTART.md` | Build/run checklist |
+| `GUI_ARCHITECTURE.md` | GUI design notes |
+
+## 5. Data Model
+
+Each `Book` stores:
+- `isbn`
+- `copyId`
+- `title`
+- `author`
+- `year`
+- `isAvailable`
+
+The ordering relation is:
+1. lower ISBN first
+2. if ISBN matches, lower copy ID first
+
+That ordering keeps duplicate copies stable inside the tree while preserving sorted traversal.
+
+## 6. Persistence Format
+
+`library.dat` is currently a comma-separated text file with this layout per line:
+
+```text
+isbn,title,author,year,availability
 ```
-Book (Data Model)
-  ↓
-RedBlackTree<Book> (Data Structure)
-  ↓
-LibraryManagementSystem (Business Logic)
-  ↓
-Main Programs:
-  - main.cpp (Console Interface)
-  - LibraryGUI + main_gui.cpp (Graphical Interface)
-```
 
-### Red-Black Tree Properties
-1. Every node is either red or black
-2. Root is always black
-3. All leaves (NIL) are black
-4. Red nodes cannot have red children
-5. All paths from root to leaves contain same number of black nodes
+Notes:
+- `availability` is stored as `1` or `0`.
+- `copyId` is **not** stored directly.
+- Copy IDs are reconstructed during loading by counting how many copies of the same ISBN have already been inserted.
 
-### GUI Components
-- **Button**: Clickable UI element with states (normal, hover, active)
-- **InputBox**: Text input field with focus management
-- **ScrollableList**: Scrollable container for displaying multiple items
-- **MessageBox**: Temporary notification system
-- **Screen Manager**: Handles navigation between different views
+## 7. Build and Deployment
 
-## 📊 Performance Characteristics
-
-| Operation | Time Complexity | Space Complexity |
-|-----------|----------------|------------------|
-| Insert    | O(log n)       | O(1)             |
-| Delete    | O(log n)       | O(1)             |
-| Search    | O(log n)       | O(1)             |
-| Display All | O(n)         | O(log n)         |
-
-Where n = number of books in the library
-
-## 🚀 Quick Start
-
-### Prerequisites
-- Linux OS (Ubuntu 24 recommended)
-- C++17 compiler (g++ 7.0+)
-- SFML 3.0.2 (for GUI version)
-- DejaVu Sans font (usually pre-installed)
-
-### Installation
+### CMake
 ```bash
-# Automatic setup
-./setup.sh
-
-# Or manual
-sudo apt-get install build-essential libsfml-dev fonts-dejavu
+cmake -S . -B build
+cmake --build build
 ```
 
-### Building
+### Console-only CMake build
 ```bash
-# Both versions
+cmake -S . -B build -DBUILD_GUI_APP=OFF
+cmake --build build
+```
+
+### Install/package
+```bash
+cmake --install build --prefix ./dist
+cd build && cpack
+```
+
+### Legacy make workflow
+```bash
 make -f Makefile_complete all
-
-# GUI only
-make -f Makefile_complete gui
-
-# Console only
-make -f Makefile_complete console
 ```
 
-### Running
-```bash
-# GUI version
-./library_system_gui
+## 8. GUI Runtime Notes
 
-# Console version
-./library_system
-```
+The GUI requires:
+- SFML graphics/window/system libraries
+- a readable `.ttf` or `.ttc` font
+- a desktop environment capable of opening an SFML window
 
-## 📚 Sample Data
+Font resolution order:
+1. `LIBRARY_GUI_FONT` environment variable
+2. `LIBRARY_GUI_DEFAULT_FONT` configured in CMake
+3. common OS-specific font paths
 
-The system comes pre-loaded with 5 classic books:
+## 9. Operational Caveats
 
-| ISBN | Title | Author | Year |
-|------|-------|--------|------|
-| 1001 | The Great Gatsby | F. Scott Fitzgerald | 1925 |
-| 1002 | To Kill a Mockingbird | Harper Lee | 1960 |
-| 1003 | 1984 | George Orwell | 1949 |
-| 1004 | Pride and Prejudice | Jane Austen | 1813 |
-| 1005 | The Catcher in the Rye | J.D. Salinger | 1951 |
+- The console app still prints a message about initializing sample books, but the backend actually loads from `library.dat` first.
+- GUI success messages are optimistic in some flows; backend failures may still print to stdout rather than surfacing detailed GUI errors.
+- Search and mutation by ISBN operate on the first matching copy, not on every copy.
+- The console entry point still seeds five sample books on every launch, even after loading persisted data.
 
-## 🎨 Design Specifications
+## 10. Recommended Next Improvements
 
-### GUI Design
-- **Window Size**: 900 x 700 pixels
-- **Frame Rate**: 60 FPS
-- **Color Scheme**: Professional blue-gray theme
-  - Primary: Steel Blue (70, 130, 180)
-  - Hover: Cornflower Blue (100, 149, 237)
-  - Active: Royal Blue (65, 105, 225)
-  - Background: Light Gray (245, 245, 245)
-
-### Fonts
-- Header: 32pt Bold
-- Screen Titles: 24pt Bold
-- Buttons: 18pt Regular
-- Input/Labels: 16-18pt Regular
-- Lists: 14pt Regular
-
-## 💡 Usage Examples
-
-### Adding a Book (GUI)
-1. Click "Add Book" from main menu
-2. Fill in the form:
-   - ISBN: 2001
-   - Title: Clean Code
-   - Author: Robert C. Martin
-   - Year: 2008
-3. Click "Add Book" button
-4. Success message appears
-
-### Searching (Console)
-```
-Enter your choice: 3
-Enter ISBN to search: 1001
-ISBN: 1001 | Title: The Great Gatsby | Author: F. Scott Fitzgerald | Year: 1925 | Status: Available
-```
-
-### Checkout/Return
-- Checkout: Marks book as unavailable
-- Return: Marks book as available again
-- System tracks status automatically
-
-## 🔧 Technical Details
-
-### Red-Black Tree Implementation
-- Template-based design (works with any comparable type)
-- Sentinel NIL nodes for simplified logic
-- Left and right rotation operations
-- Color-flipping for rebalancing
-- Iterative and recursive operations
-
-### Memory Management
-- Smart pointers (unique_ptr) for GUI components
-- RAII principles throughout
-- Proper cleanup in destructors
-- No memory leaks
-
-### Thread Safety
-- Single-threaded design
-- No concurrent access issues
-- Suitable for single-user desktop application
-
-## 📈 Scalability
-
-The Red-Black Tree ensures:
-- Efficient operations even with thousands of books
-- Guaranteed O(log n) worst-case performance
-- Balanced tree structure maintained automatically
-- No degradation to O(n) unlike simple BST
-
-For 10,000 books:
-- Search: ~14 comparisons maximum
-- Insert: ~14 comparisons + rebalancing
-- Delete: ~14 comparisons + rebalancing
-
-## 🔍 Testing Recommendations
-
-### Functional Tests
-- [ ] Add books with various ISBNs
-- [ ] Remove existing and non-existing books
-- [ ] Search for present and absent books
-- [ ] Checkout available books
-- [ ] Return checked-out books
-- [ ] View all books
-- [ ] Input validation (invalid ISBN, empty fields)
-
-### Edge Cases
-- [ ] Duplicate ISBN handling
-- [ ] Empty library operations
-- [ ] Very large ISBN numbers
-- [ ] Special characters in titles/authors
-- [ ] Extremely long strings
-
-### GUI-Specific Tests
-- [ ] Button hover effects
-- [ ] Input field focus management
-- [ ] Scroll functionality
-- [ ] Message box display/timeout
-- [ ] Screen transitions
-- [ ] Window resize/close
-
-## 🚧 Known Limitations
-
-1. **No Persistent Storage**: Data lost when application closes
-2. **Single User**: No multi-user support
-3. **Basic Search**: Only by ISBN (not by title/author)
-4. **No Date Tracking**: No due dates for checkouts
-5. **Static View All**: List doesn't auto-update after operations
-
-## 🔮 Future Enhancements
-
-### High Priority
-- [ ] File-based persistence (save/load library state)
-- [ ] Search by title and author
-- [ ] Due date tracking for checkouts
-- [ ] Overdue book notifications
-- [ ] Book cover image support
-
-### Medium Priority
-- [ ] User account system
-- [ ] Fine calculation
-- [ ] Reservation system
-- [ ] Category/genre classification
-- [ ] Statistics dashboard
-
-### Low Priority
-- [ ] Database integration (SQLite)
-- [ ] Network support (client-server)
-- [ ] Barcode scanning
-- [ ] Export to PDF/CSV
-- [ ] Print functionality
-- [ ] Dark mode theme
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-**Font Not Found**
-```bash
-find /usr/share/fonts -name "DejaVuSans.ttf"
-# Update path in main_gui.cpp
-```
-
-**SFML Not Found**
-```bash
-export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
-sudo ldconfig
-```
-
-**Compilation Errors**
-```bash
-g++ --version  # Ensure 7.0+
-pkg-config --list-all | grep sfml
-```
-
-## 📝 Development Notes
-
-### Code Style
-- C++17 standard
-- RAII principles
-- Smart pointers
-- Const correctness
-- Clear naming conventions
-
-### Design Patterns
-- Template Method (Red-Black Tree)
-- State Pattern (GUI screens)
-- Observer (GUI events)
-- Factory (Component creation)
-
-## 📄 License
-
-Free to use for educational purposes.
-
-## 🤝 Contributing
-
-Potential contributions:
-- Add database persistence
-- Implement search by title/author
-- Add book cover images
-- Create unit tests
-- Add due date system
-- Improve UI/UX
-
-## 📞 Support
-
-For help:
-1. Check QUICKSTART.md
-2. Review README_GUI.md
-3. Read GUI_ARCHITECTURE.md
-4. Run setup.sh for dependency check
-5. Verify font paths
-
-## 🎓 Educational Value
-
-This project demonstrates:
-- Advanced data structures (Red-Black Tree)
-- Object-oriented programming
-- GUI development with SFML
-- Memory management
-- Event-driven programming
-- Template programming
-- Build systems (Make)
-- Software architecture
-
-Perfect for:
-- Data structures courses
-- C++ programming classes
-- Software engineering projects
-- Portfolio pieces
-
-## 📚 Resources
-
-- SFML Documentation: https://www.sfml-dev.org/documentation/3.0.0/
-- Red-Black Trees: Introduction to Algorithms (CLRS)
-- C++17 Reference: https://en.cppreference.com/
-
----
-
-**Version**: 1.0  
-**Last Updated**: January 2026  
-**Authors**: Educational Project  
-
-Enjoy building and extending this library management system! 📚✨
+- Persist `copyId` explicitly in `library.dat`.
+- Improve GUI feedback so it reflects backend success/failure precisely.
+- Add richer search filters for title and author.
+- Normalize or escape commas in serialized text fields.
+- Add automated tests for duplicate-copy behavior and persistence reloads.

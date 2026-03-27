@@ -1,340 +1,142 @@
-# Library Management System - GUI Version
+# Library Management System - GUI Guide
 
-A modern graphical user interface for the Library Management System, built with SFML 3.0.2 and C++17.
+This document describes the **current** SFML GUI behavior for the project.
 
-## Features
+## Overview
 
-### Visual Interface
-- **Modern Design**: Clean, professional interface with intuitive navigation
-- **Interactive Buttons**: Hover effects and visual feedback
-- **Input Forms**: Easy-to-use text input fields with focus indicators
-- **Message Notifications**: Temporary pop-up messages for user feedback
-- **Scrollable Lists**: View large collections of books with mouse wheel scrolling
+The GUI is an optional desktop front end for the same `LibraryManagementSystem` backend used by the console application. It provides screens for adding, removing, searching, checking out, returning, and listing books.
 
-### Functionality
-- Add new books with complete information
-- Remove books from the library
-- Search for books by ISBN
-- Check out books
-- Return books
-- View all books in a scrollable list
+## Current GUI Characteristics
 
-## Requirements
+- Built with **C++17 + SFML**.
+- Uses the same persistent backend as the console app.
+- Loads existing records from `library.dat` through `LibraryManagementSystem`.
+- Displays books in a scrollable list.
+- Uses simple success/error message boxes for feedback.
+- Relies on runtime font discovery instead of one hard-coded font path.
 
-### Dependencies
-- **SFML 3.0.2** (Simple and Fast Multimedia Library)
-  - sfml-graphics
-  - sfml-window
-  - sfml-system
-- **C++17 compiler** (g++ 7.0 or later)
+## Build
 
-### System Requirements
-- Windows, macOS, or Linux
-- A desktop/windowing environment for GUI display
-- Any readable TrueType/OpenType collection font (the app checks common system locations and can be configured explicitly)
-
-## Installation
-
-### Install SFML 3.0.2
-
-#### Option 1: From Source (Recommended for SFML 3.0.2)
-```bash
-# Install dependencies
-sudo apt-get update
-sudo apt-get install libx11-dev libxrandr-dev libxcursor-dev libxi-dev \
-                     libudev-dev libgl1-mesa-dev libfreetype-dev \
-                     libopenal-dev libvorbis-dev libflac-dev cmake
-
-# Download and build SFML 3.0.2
-git clone https://github.com/SFML/SFML.git
-cd SFML
-git checkout 3.0.2
-cmake -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build
-sudo cmake --install build
-```
-
-#### Option 2: Package Manager (may not have 3.0.2)
-```bash
-sudo apt-get install libsfml-dev
-```
-
-### Install Font
-```bash
-sudo apt-get install fonts-dejavu
-```
-
-## Compilation
-
-### Using CMake (recommended)
-
-Build both console and GUI versions when SFML is available:
+### Recommended
 ```bash
 cmake -S . -B build
 cmake --build build
 ```
 
-Build only the console version:
+If SFML is detected, this produces `build/library_system_gui`.
+
+### With an explicit default font
 ```bash
-cmake -S . -B build -DBUILD_GUI_APP=OFF
+cmake -S . -B build -DLIBRARY_GUI_DEFAULT_FONT=/absolute/path/to/font.ttf
 cmake --build build
 ```
 
-Provide an explicit default GUI font path if your platform does not store fonts in a common location:
-```bash
-cmake -S . -B build -DLIBRARY_GUI_DEFAULT_FONT=/absolute/path/to/font.ttf
-```
-
-Create an installable staging directory or package:
-```bash
-cmake --install build --prefix ./dist
-cd build && cpack
-```
-
-### Using the Makefile
-
-Build both console and GUI versions:
-```bash
-make -f Makefile_complete all
-```
-
-Build only GUI version:
+### Legacy makefile build
 ```bash
 make -f Makefile_complete gui
 ```
 
-Build only console version:
+## Running
+
 ```bash
-make -f Makefile_complete console
+./build/library_system_gui
 ```
 
-### Manual Compilation
+If automatic font detection fails:
 
-Console version:
 ```bash
-g++ -std=c++17 -Wall -Wextra -o library_system main.cpp Book.cpp LibraryManagementSystem.cpp
+LIBRARY_GUI_FONT=/absolute/path/to/font.ttf ./build/library_system_gui
 ```
 
-GUI version:
-```bash
-g++ -std=c++17 -Wall -Wextra -o library_system_gui main_gui.cpp LibraryGUI.cpp \
-    Book.cpp LibraryManagementSystem.cpp \
-    -lsfml-graphics -lsfml-window -lsfml-system
-```
+## Font Resolution Strategy
 
-## Running the Application
+The GUI tries fonts in this order:
 
-### GUI Version
-```bash
-./library_system_gui
-```
+1. `LIBRARY_GUI_FONT`
+2. `LIBRARY_GUI_DEFAULT_FONT` set during CMake configure
+3. OS-specific common font locations
 
-Or using Make:
-```bash
-make -f Makefile_complete run-gui
-```
+If none of these work, the application exits with a font-loading error.
 
-### Console Version
-```bash
-./library_system
-```
-
-Or using Make:
-```bash
-make -f Makefile_complete run-console
-```
-
-## User Interface Guide
+## Screen-by-Screen Behavior
 
 ### Main Menu
-The main menu presents six primary options:
-1. **Add Book** - Add a new book to the library
-2. **Remove Book** - Remove an existing book
-3. **Search Book** - Find a book by ISBN
-4. **Checkout Book** - Mark a book as checked out
-5. **Return Book** - Mark a book as returned
-6. **View All Books** - See the complete catalog
+Provides navigation to:
+- Add Book
+- Remove Book
+- Search Book
+- Checkout Book
+- Return Book
+- View All Books
 
-### Add Book Screen
-- **ISBN**: Enter a unique numeric identifier
-- **Title**: Enter the book's title
-- **Author**: Enter the author's name
-- **Year**: Enter the publication year
+### Add Book
+Inputs:
+- ISBN
+- Title
+- Author
+- Year
 
-Click "Add Book" to save, or "Back" to return to the main menu.
+Behavior:
+- Converts ISBN and year with `std::stoi`
+- Calls backend `addBook`
+- Adding the same ISBN again creates a new **copy**
+- Shows a success message and clears inputs on valid parsing
 
-### Remove Book Screen
-- Enter the ISBN of the book you want to remove
-- Click "Remove" to delete the book
+### Remove Book
+Inputs:
+- ISBN
 
-### Search Book Screen
-- Enter an ISBN to search
-- Click "Search" to display book details
-- Results appear in the list below
+Behavior:
+- Removes the **first matching copy** for that ISBN
+- Shows a generic success message when parsing succeeds
+- Backend failure details are printed to stdout rather than fully reflected in GUI state
 
-### Checkout/Return Screens
-- Enter the ISBN of the book
-- Click the appropriate button to check out or return
+### Search Book
+Inputs:
+- ISBN
 
-### View All Books Screen
-- Displays all books in the library
-- Use mouse wheel to scroll through the list
-- Books shown in order by ISBN
+Behavior:
+- Displays the **first matching copy** for that ISBN
+- Shows one result row or `Book not found.`
 
-## UI Components
+### Checkout Book
+Inputs:
+- ISBN
 
-### Buttons
-- **Hover Effect**: Buttons change color when mouse hovers over them
-- **Click**: Left-click to activate a button
-- **Visual Feedback**: Active buttons show a different color
+Behavior:
+- Checks out the **first available copy** for that ISBN
+- If all copies are already checked out, the backend prints that detail to stdout
 
-### Input Fields
-- **Focus**: Click on a field to activate it (blue border indicates focus)
-- **Typing**: Type directly into focused fields
-- **Backspace**: Delete characters
-- **Tab**: Move to next field (if implemented)
+### Return Book
+Inputs:
+- ISBN
 
-### Message Box
-- Appears at the bottom center of the window
-- Shows success/error messages
-- Automatically disappears after 3 seconds
+Behavior:
+- Returns the **first checked-out copy** for that ISBN
+- If all copies are already available, the backend prints that detail to stdout
 
-### Scrollable Lists
-- Use mouse wheel to scroll up/down
-- Displays up to 10 items at a time
-- Shows book details in a readable format
+### View All Books
+Behavior:
+- Rebuilds the list from `library.forEachBook(...)`
+- Shows the current catalog order from the Red-Black Tree
+- Supports mouse-wheel scrolling
+- Displays status as `Available` or `Checked Out`
 
-## Color Scheme
+## Data and Persistence
 
-- **Primary Color**: Steel Blue (70, 130, 180)
-- **Hover Color**: Cornflower Blue (100, 149, 237)
-- **Active Color**: Royal Blue (65, 105, 225)
-- **Background**: Light Gray (245, 245, 245)
-- **Text**: Black for readability
-
-## Architecture
-
-### Class Structure
-
-#### LibraryGUI
-Main GUI controller that manages screens and user interactions.
-
-#### Button
-Reusable button component with hover effects.
-
-#### InputBox
-Text input field with focus management and cursor display.
-
-#### ScrollableList
-Scrollable list for displaying multiple items.
-
-#### MessageBox
-Temporary notification system for user feedback.
-
-## Keyboard Shortcuts
-
-- **Backspace**: Delete characters in input fields
-- **Mouse Wheel**: Scroll in list views
-- **ESC**: (Can be implemented) Return to main menu
-
-## Troubleshooting
-
-### Font Loading Error
-If you see "Error: Could not load a GUI font!", try:
-```bash
-# Linux/macOS example
-export LIBRARY_GUI_FONT=/absolute/path/to/font.ttf
-./build/library_system_gui
-
-# Or configure a default path at CMake configure time
-cmake -S . -B build -DLIBRARY_GUI_DEFAULT_FONT=/absolute/path/to/font.ttf
-
-# Find an installed font on Linux if needed
-find /usr/share/fonts -name "*.ttf"
-```
-
-### SFML Library Not Found
-```bash
-# Add library path
-export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
-
-# Or install to system directory
-sudo ldconfig
-```
-
-### Compilation Errors
-Ensure you have C++17 support:
-```bash
-g++ --version  # Should be 7.0 or higher
-```
-
-Check SFML version:
-```bash
-pkg-config --modversion sfml-all
-```
+The GUI itself does not inject sample books. Instead:
+- the backend loads `library.dat` at startup
+- successful mutations save back to `library.dat`
+- changes made in the GUI are visible to the console app and vice versa across runs through the shared file
+- if the console app has been launched before, its startup seeding will already have added the five sample books to persisted data
 
 ## Known Limitations
 
-- View All screen shows initial sample books (static list)
-- No persistent file storage (data lost on exit)
-- Single-user system (no concurrent access)
-- Basic input validation
+- GUI messages do not always distinguish backend success from backend refusal after a valid ISBN parse.
+- Search returns only the first matching copy, not every copy with the same ISBN.
+- The serialized data format does not explicitly persist copy IDs.
+- Text fields are plain free-form inputs with minimal validation.
 
-## Future Enhancements
+## Development Notes
 
-Potential GUI improvements:
-- Real-time book list updates
-- Multi-column sorting
-- Search by title/author
-- Book cover images
-- Date picker for due dates
-- User account management
-- Statistics dashboard
-- Print functionality
-- Export to PDF/CSV
-- Dark mode theme
-- Keyboard navigation
-- Drag-and-drop file import
-- Barcode scanning integration
-
-## Performance
-
-- **Frame Rate**: Locked at 60 FPS for smooth animations
-- **Memory**: Minimal overhead for typical library sizes
-- **Responsiveness**: Immediate visual feedback on all interactions
-
-## File Structure
-
-```
-library-management-system/
-├── Book.h / Book.cpp              # Book entity
-├── RedBlackTree.h                 # Red-Black Tree implementation
-├── LibraryManagementSystem.h/cpp  # Library logic
-├── LibraryGUI.h / LibraryGUI.cpp  # GUI implementation
-├── main.cpp                       # Console entry point
-├── main_gui.cpp                   # GUI entry point
-├── Makefile_complete              # Legacy Make build system
-├── CMakeLists.txt                 # Cross-platform CMake build system
-└── README_GUI.md                  # This file
-```
-
-## Credits
-
-Built with:
-- SFML 3.0.2 by Laurent Gomila
-- DejaVu Fonts Project
-- C++ Standard Library
-
-## License
-
-Free to use for educational purposes.
-
-## Support
-
-For issues or questions:
-1. Check the troubleshooting section
-2. Verify SFML installation
-3. Ensure all dependencies are met
-4. Check font paths
-
-Enjoy your modern library management experience! 📚
+Prefer the CMake workflow over `Makefile_complete` for portability. CMake also handles the optional GUI target more gracefully by skipping it when SFML is unavailable.
