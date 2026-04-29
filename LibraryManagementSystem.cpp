@@ -2,10 +2,16 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
-#include <stdio.h>
+#include <cstdio>
 
-LibraryManagementSystem::LibraryManagementSystem() {
-    loadFromFile("library.dat");
+namespace {
+const std::string DataFilename = "library.dat";
+const std::string JournalFilename = "library.dat.journal";
+}
+
+LibraryManagementSystem::LibraryManagementSystem() : dirty(false) {
+    loadFromFile(DataFilename);
+    replayJournal(JournalFilename);
     /*if (bookTree.isEmpty()) {
         // 添加示例书籍
         addBook(1001, "The Great Gatsby", "F. Scott Fitzgerald", 1925);
@@ -14,6 +20,10 @@ LibraryManagementSystem::LibraryManagementSystem() {
         addBook(1004, "Pride and Prejudice", "Jane Austen", 1813);
         addBook(1005, "The Catcher in the Rye", "J.D. Salinger", 1951);
     }*/
+}
+
+LibraryManagementSystem::~LibraryManagementSystem() {
+    compactSave();
 }
 
 int LibraryManagementSystem::getNextCopyId(int isbn) const {
@@ -38,13 +48,102 @@ RBNode<Book>* LibraryManagementSystem::findAvailableBookNode(int isbn) {
     });
 }
 
+bool LibraryManagementSystem::recordChange(const std::string& entry) {
+    std::ofstream journal(JournalFilename, std::ios::app);
+    if (!journal.is_open()) {
+        std::cerr << "Error: Could not open journal for writing: "
+                  << JournalFilename << std::endl;
+        return false;
+    }
+
+    journal << entry << std::endl;
+    if (!journal) {
+        std::cerr << "Error: Could not write journal entry." << std::endl;
+        return false;
+    }
+
+    dirty = true;
+    return true;
+}
+
+void LibraryManagementSystem::replayJournal(const std::string& filename) {
+    std::ifstream journal(filename);
+    if (!journal.is_open()) return;
+
+    std::string line;
+    bool foundJournalEntries = false;
+    while (std::getline(journal, line)) {
+        if (line.empty()) continue;
+        foundJournalEntries = true;
+
+        std::stringstream ss(line);
+        std::string operation;
+        if (!std::getline(ss, operation, ',')) continue;
+
+        if (operation == "ADD") {
+            std::string token;
+            if (!std::getline(ss, token, ',')) continue;
+            int isbn = std::stoi(token);
+            if (!std::getline(ss, token, ',')) continue;
+            std::string title = token;
+            if (!std::getline(ss, token, ',')) continue;
+            std::string author = token;
+            if (!std::getline(ss, token, ',')) continue;
+            int year = std::stoi(token);
+
+            Book book(isbn, title, author, year, true, getNextCopyId(isbn));
+            bookTree.insert(book);
+        } else if (operation == "REMOVE") {
+            std::string token;
+            if (!std::getline(ss, token, ',')) continue;
+            RBNode<Book>* node = findBookNode(std::stoi(token));
+            if (node != nullptr) {
+                bookTree.remove(node->data);
+            }
+        } else if (operation == "CHECKOUT") {
+            std::string token;
+            if (!std::getline(ss, token, ',')) continue;
+            RBNode<Book>* node = findAvailableBookNode(std::stoi(token));
+            if (node != nullptr) {
+                node->data.setAvailability(false);
+            }
+        } else if (operation == "RETURN") {
+            std::string token;
+            if (!std::getline(ss, token, ',')) continue;
+            const int isbn = std::stoi(token);
+            RBNode<Book>* node = bookTree.findFirst([isbn](const Book& book) {
+                return book.getISBN() == isbn && !book.getAvailability();
+            });
+            if (node != nullptr) {
+                node->data.setAvailability(true);
+            }
+        }
+    }
+
+    if (foundJournalEntries) {
+        dirty = true;
+    }
+}
+
+void LibraryManagementSystem::compactSave() {
+    if (dirty) {
+        saveToFile(DataFilename);
+        dirty = false;
+    }
+}
+
 void LibraryManagementSystem::addBook(int isbn, const std::string& title,
                                       const std::string& author, int year) {
     Book newBook(isbn, title, author, year, true, getNextCopyId(isbn));
+    std::ostringstream journalEntry;
+    journalEntry << "ADD," << isbn << ',' << title << ',' << author << ',' << year;
+    if (!recordChange(journalEntry.str())) {
+        return;
+    }
+
     bookTree.insert(newBook);
     std::cout << "Book added successfully: " << title
               << " (copy " << newBook.getCopyId() << ")" << std::endl;
-    saveToFile("library.dat");
 }
 
 void LibraryManagementSystem::removeBook(int isbn) {
@@ -56,10 +155,13 @@ void LibraryManagementSystem::removeBook(int isbn) {
     }
 
     Book targetBook = node->data;
+    if (!recordChange("REMOVE," + std::to_string(isbn))) {
+        return;
+    }
+
     bookTree.remove(targetBook);
     std::cout << "Book with ISBN " << isbn << " removed successfully"
               << " (copy " << targetBook.getCopyId() << ")." << std::endl;
-    saveToFile("library.dat");
 }
 
 void LibraryManagementSystem::checkoutBook(int isbn) {
@@ -75,10 +177,13 @@ void LibraryManagementSystem::checkoutBook(int isbn) {
         return;
     }
 
+    if (!recordChange("CHECKOUT," + std::to_string(isbn))) {
+        return;
+    }
+
     node->data.setAvailability(false);
     std::cout << "Book checked out successfully: " << node->data.getTitle()
               << " (copy " << node->data.getCopyId() << ")" << std::endl;
-    saveToFile("library.dat");
 }
 
 void LibraryManagementSystem::returnBook(int isbn) {
@@ -96,10 +201,13 @@ void LibraryManagementSystem::returnBook(int isbn) {
         return;
     }
 
+    if (!recordChange("RETURN," + std::to_string(isbn))) {
+        return;
+    }
+
     node->data.setAvailability(true);
     std::cout << "Book returned successfully: " << node->data.getTitle()
               << " (copy " << node->data.getCopyId() << ")" << std::endl;
-    saveToFile("library.dat");
 }
 
 void LibraryManagementSystem::displayBook(int isbn) {
@@ -125,6 +233,10 @@ void LibraryManagementSystem::displayAllBooks() {
 }
 
 void LibraryManagementSystem::loadFromFile(const std::string& filename) {
+    if (dirty) {
+        compactSave();
+    }
+
     std::ifstream file(filename);
     if (!file.is_open()) return;  // 文件不存在则静默返回
 
@@ -159,6 +271,7 @@ void LibraryManagementSystem::loadFromFile(const std::string& filename) {
         bookTree.insert(book);
     }
     file.close();
+    dirty = false;
 }
 
 void LibraryManagementSystem::saveToFile(const std::string& filename) const {
@@ -172,6 +285,15 @@ void LibraryManagementSystem::saveToFile(const std::string& filename) const {
         file << std::endl;
     });
     file.close();
+    if (!file) {
+        std::cerr << "Error: Could not finish writing file: " << filename << std::endl;
+        return;
+    }
+
+    if (filename == DataFilename) {
+        std::remove(JournalFilename.c_str());
+        dirty = false;
+    }
 }
 
 void LibraryManagementSystem::forEachBook(std::function<void(const Book&)> func) const {
