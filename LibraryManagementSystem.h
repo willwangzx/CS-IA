@@ -4,17 +4,23 @@
 #include "RedBlackTree.h"
 #include "Book.h"
 #include<functional>
+#include <string>
 
 class LibraryManagementSystem {
 private:
     RedBlackTree<Book> bookTree;
+    mutable bool dirty;
 
     int getNextCopyId(int isbn) const;
     RBNode<Book>* findBookNode(int isbn);
     RBNode<Book>* findAvailableBookNode(int isbn);
+    bool recordChange(const std::string& entry);
+    void replayJournal(const std::string& filename);
+    void compactSave();
 
 public:
     LibraryManagementSystem();
+    ~LibraryManagementSystem();
     
     // Core operations
     void addBook(int isbn, const std::string& title, const std::string& author, int year);
