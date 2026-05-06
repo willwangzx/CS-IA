@@ -6,10 +6,28 @@
 #include <vector>
 
 namespace {
+std::string environmentVariable(const char* name) {
+#ifdef _WIN32
+    char* value = nullptr;
+    std::size_t valueLength = 0;
+
+    if (_dupenv_s(&value, &valueLength, name) != 0 || value == nullptr) {
+        return {};
+    }
+
+    std::string result(value);
+    std::free(value);
+    return result;
+#else
+    const char* value = std::getenv(name);
+    return value != nullptr ? value : "";
+#endif
+}
+
 std::vector<std::string> candidateFontPaths() {
     std::vector<std::string> candidates;
 
-    if (const char* envFont = std::getenv("LIBRARY_GUI_FONT")) {
+    if (std::string envFont = environmentVariable("LIBRARY_GUI_FONT"); !envFont.empty()) {
         candidates.emplace_back(envFont);
     }
 
