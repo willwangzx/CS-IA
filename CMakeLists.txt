@@ -8,6 +8,7 @@ include(CMakePackageConfigHelpers)
 option(BUILD_CONSOLE_APP "Build the console application" ON)
 option(BUILD_GUI_APP "Build the SFML GUI application when dependencies are available" ON)
 option(ENABLE_WARNINGS "Enable compiler warnings" ON)
+option(BUILD_TESTING "Build test executables" ON)
 set(LIBRARY_GUI_DEFAULT_FONT "" CACHE STRING "Optional default font path for the GUI application")
 
 set(LIBRARY_COMMON_SOURCES
@@ -50,16 +51,9 @@ endif()
 
 set(GUI_TARGET_BUILT FALSE)
 if(BUILD_GUI_APP)
-    find_package(SFML 3 QUIET COMPONENTS Graphics Window System)
+    find_package(SFML 3 REQUIRED COMPONENTS Graphics Window System)
 
-    if(SFML_FOUND)
-        set(SFML_GUI_LIBS SFML::Graphics SFML::Window SFML::System)
-    else()
-        find_package(SFML 2.5 QUIET COMPONENTS graphics window system)
-        if(SFML_FOUND)
-            set(SFML_GUI_LIBS sfml-graphics sfml-window sfml-system)
-        endif()
-    endif()
+    set(SFML_GUI_LIBS SFML::Graphics SFML::Window SFML::System)
 
     if(SFML_FOUND)
         add_executable(library_system_gui main_gui.cpp LibraryGUI.cpp)
@@ -72,6 +66,20 @@ if(BUILD_GUI_APP)
     else()
         message(WARNING "SFML was not found. The GUI target will not be generated. Install SFML or set BUILD_GUI_APP=OFF.")
     endif()
+endif()
+
+if(BUILD_TESTING)
+    enable_testing()
+
+    add_executable(library_unit_tests tests/library_unit_tests.cpp)
+    target_link_libraries(library_unit_tests PRIVATE library_core)
+    add_test(NAME library_unit_tests COMMAND library_unit_tests)
+
+    add_executable(rbtree_stress_test tests/rbtree_stress_test.cpp)
+    target_link_libraries(rbtree_stress_test PRIVATE library_core)
+
+    add_executable(lms_bruteforce_test tests/lms_bruteforce_test.cpp)
+    target_link_libraries(lms_bruteforce_test PRIVATE library_core)
 endif()
 
 install(TARGETS library_core
