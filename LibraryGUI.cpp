@@ -1,4 +1,6 @@
 #include "LibraryGUI.h"
+#include <algorithm>
+#include <iostream>
 #include <sstream>
 #include <iomanip>
 
@@ -93,15 +95,16 @@ void InputBox::draw(sf::RenderWindow& window) {
 void InputBox::handleEvent(const sf::Event& event) {
     if (!isFocused) return;
     
-    if (event.is<sf::Event::TextEntered>()) {
-        if (event.text.code == 8) { // Backspace
+    if (const auto* textEvent = event.getIf<sf::Event::TextEntered>()) {
+        const char32_t unicode = textEvent->unicode;
+        if (unicode == 8) { // Backspace
             if (!content.empty()) {
                 content.pop_back();
             }
-        } else if (event.text.code == 13) { // Enter
+        } else if (unicode == 13) { // Enter
             // Enter handled by parent
-        } else if (event.text.code < 128 && event.text.code >= 32) {
-            content += static_cast<char>(event.text.code);
+        } else if (unicode < 128 && unicode >= 32) {
+            content += static_cast<char>(unicode);
         }
     }
     
@@ -184,7 +187,7 @@ void ScrollableList::scroll(int delta) {
                            std::max(0, static_cast<int>(items.size()) - maxVisibleItems));
 }
 
-void ScrollableList::update(const sf::Vector2f& mousePos) {
+void ScrollableList::update(const sf::Vector2f&) {
     // Can add hover effects here if needed
 }
 
@@ -231,7 +234,9 @@ void MessageBox::update() {
 
 // LibraryGUI Implementation
 LibraryGUI::LibraryGUI()
-    : window(sf::VideoMode(900u, 700u), "Library Management System", sf::Style::Close),
+    : window(sf::VideoMode({900u, 700u}), "Library Management System", sf::Style::Close),
+      titleText(font),
+      screenTitleText(font),
       currentScreen(Screen::MAIN_MENU) {
     
     window.setFramerateLimit(60);
@@ -249,9 +254,7 @@ LibraryGUI::~LibraryGUI() {
 }
 
 bool LibraryGUI::loadFont(const std::string& fontPath) {
-    try {
-        font = sf::Font(fontPath);
-    } catch (...) {
+    if (!font.openFromFile(fontPath)) {
         return false;
     }
     
@@ -502,9 +505,8 @@ void LibraryGUI::initializeViewAllScreen() {
 }
 
 void LibraryGUI::handleMainMenuEvents(const sf::Event& event) {
-    if (event.is<sf::Event::MouseButtonPressed>()) {
-        const auto& mouseEvent = event.get<sf::Event::MouseButtonPressed>();
-        if (mouseEvent.button == sf::Mouse::Button::Left) {
+    if (const auto* mouseEvent = event.getIf<sf::Event::MouseButtonPressed>()) {
+        if (mouseEvent->button == sf::Mouse::Button::Left) {
             sf::Vector2f mousePos = getMousePosition();
             
             for (size_t i = 0; i < mainMenuButtons.size(); ++i) {
@@ -525,9 +527,8 @@ void LibraryGUI::handleMainMenuEvents(const sf::Event& event) {
 
 void LibraryGUI::handleAddBookEvents(const sf::Event& event) {
     // Handle input box focus
-    if (event.is<sf::Event::MouseButtonPressed>()) {
-        const auto& mouseEvent = event.get<sf::Event::MouseButtonPressed>();
-        if (mouseEvent.button == sf::Mouse::Button::Left) {
+    if (const auto* mouseEvent = event.getIf<sf::Event::MouseButtonPressed>()) {
+        if (mouseEvent->button == sf::Mouse::Button::Left) {
             sf::Vector2f mousePos = getMousePosition();
             
             // Check input boxes
@@ -576,9 +577,8 @@ void LibraryGUI::handleAddBookEvents(const sf::Event& event) {
 }
 
 void LibraryGUI::handleRemoveBookEvents(const sf::Event& event) {
-    if (event.is<sf::Event::MouseButtonPressed>()) {
-        const auto& mouseEvent = event.get<sf::Event::MouseButtonPressed>();
-        if (mouseEvent.button == sf::Mouse::Button::Left) {
+    if (const auto* mouseEvent = event.getIf<sf::Event::MouseButtonPressed>()) {
+        if (mouseEvent->button == sf::Mouse::Button::Left) {
             sf::Vector2f mousePos = getMousePosition();
             
             // Handle input focus
@@ -611,9 +611,8 @@ void LibraryGUI::handleRemoveBookEvents(const sf::Event& event) {
 }
 
 void LibraryGUI::handleSearchBookEvents(const sf::Event& event) {
-    if (event.is<sf::Event::MouseButtonPressed>()) {
-        const auto& mouseEvent = event.get<sf::Event::MouseButtonPressed>();
-        if (mouseEvent.button == sf::Mouse::Button::Left) {
+    if (const auto* mouseEvent = event.getIf<sf::Event::MouseButtonPressed>()) {
+        if (mouseEvent->button == sf::Mouse::Button::Left) {
             sf::Vector2f mousePos = getMousePosition();
             
             if (inputBoxes[0]->getFocus()) {
@@ -658,9 +657,8 @@ void LibraryGUI::handleSearchBookEvents(const sf::Event& event) {
 }
 
 void LibraryGUI::handleCheckoutBookEvents(const sf::Event& event) {
-    if (event.is<sf::Event::MouseButtonPressed>()) {
-        const auto& mouseEvent = event.get<sf::Event::MouseButtonPressed>();
-        if (mouseEvent.button == sf::Mouse::Button::Left) {
+    if (const auto* mouseEvent = event.getIf<sf::Event::MouseButtonPressed>()) {
+        if (mouseEvent->button == sf::Mouse::Button::Left) {
             sf::Vector2f mousePos = getMousePosition();
             
             if (inputBoxes[0]->getFocus()) {
@@ -692,9 +690,8 @@ void LibraryGUI::handleCheckoutBookEvents(const sf::Event& event) {
 }
 
 void LibraryGUI::handleReturnBookEvents(const sf::Event& event) {
-    if (event.is<sf::Event::MouseButtonPressed>()) {
-        const auto& mouseEvent = event.get<sf::Event::MouseButtonPressed>();
-        if (mouseEvent.button == sf::Mouse::Button::Left) {
+    if (const auto* mouseEvent = event.getIf<sf::Event::MouseButtonPressed>()) {
+        if (mouseEvent->button == sf::Mouse::Button::Left) {
             sf::Vector2f mousePos = getMousePosition();
             
             if (inputBoxes[0]->getFocus()) {
@@ -726,9 +723,8 @@ void LibraryGUI::handleReturnBookEvents(const sf::Event& event) {
 }
 
 void LibraryGUI::handleViewAllEvents(const sf::Event& event) {
-    if (event.is<sf::Event::MouseButtonPressed>()) {
-        const auto& mouseEvent = event.get<sf::Event::MouseButtonPressed>();
-        if (mouseEvent.button == sf::Mouse::Button::Left) {
+    if (const auto* mouseEvent = event.getIf<sf::Event::MouseButtonPressed>()) {
+        if (mouseEvent->button == sf::Mouse::Button::Left) {
             sf::Vector2f mousePos = getMousePosition();
             
             if (backButton->isClicked(mousePos)) {
@@ -738,9 +734,8 @@ void LibraryGUI::handleViewAllEvents(const sf::Event& event) {
     }
     
     // Handle scrolling
-    if (event.is<sf::Event::MouseWheelMoved>()) {
-        const auto& wheelEvent = event.get<sf::Event::MouseWheelMoved>();
-        bookList->scroll(-static_cast<int>(wheelEvent.delta));
+    if (const auto* wheelEvent = event.getIf<sf::Event::MouseWheelScrolled>()) {
+        bookList->scroll(-static_cast<int>(wheelEvent->delta));
     }
 }
 
