@@ -3,6 +3,15 @@
 #include <iostream>
 #include <sstream>
 #include <iomanip>
+#include <cctype>
+
+namespace {
+bool isBlank(const std::string& value) {
+    return std::all_of(value.begin(), value.end(), [](unsigned char ch) {
+        return std::isspace(ch) != 0;
+    });
+}
+}
 
 // Button Implementation
 Button::Button(const sf::Vector2f& position, const sf::Vector2f& size, 
@@ -488,7 +497,6 @@ void LibraryGUI::initializeViewAllScreen() {
     bookList->clear();
     // Get all books from library and add to list
     library.forEachBook([this](const Book& book) {
-        std::cout << "Adding to list: " << book.getTitle() << std::endl;
         std::stringstream ss;
         ss << "ISBN: " << book.getISBN()
            << " | " << book.getTitle()
@@ -559,9 +567,14 @@ void LibraryGUI::handleAddBookEvents(const sf::Event& event) {
                         std::string author = inputBoxes[2]->getContent();
                         int year = std::stoi(inputBoxes[3]->getContent());
                         
-                        library.addBook(isbn, title, author, year);
-                        messageBox->show("Book added successfully!");
-                        clearInputBoxes();
+                        if (isBlank(title) || isBlank(author)) {
+                            messageBox->show("Title and author are required.");
+                        } else if (library.addBook(isbn, title, author, year)) {
+                            messageBox->show("Book added successfully!");
+                            clearInputBoxes();
+                        } else {
+                            messageBox->show("Book could not be added.");
+                        }
                     } catch (...) {
                         messageBox->show("Invalid input! Please check all fields.");
                     }
@@ -597,9 +610,12 @@ void LibraryGUI::handleRemoveBookEvents(const sf::Event& event) {
             if (submitButton->isClicked(mousePos)) {
                 try {
                     int isbn = std::stoi(inputBoxes[0]->getContent());
-                    library.removeBook(isbn);
-                    messageBox->show("Book removed successfully!");
-                    clearInputBoxes();
+                    if (library.removeBook(isbn)) {
+                        messageBox->show("Book removed successfully!");
+                        clearInputBoxes();
+                    } else {
+                        messageBox->show("Book not found!");
+                    }
                 } catch (...) {
                     messageBox->show("Invalid ISBN!");
                 }
@@ -676,9 +692,14 @@ void LibraryGUI::handleCheckoutBookEvents(const sf::Event& event) {
             if (submitButton->isClicked(mousePos)) {
                 try {
                     int isbn = std::stoi(inputBoxes[0]->getContent());
-                    library.checkoutBook(isbn);
-                    messageBox->show("Book checked out successfully!");
-                    clearInputBoxes();
+                    if (library.checkoutBook(isbn)) {
+                        messageBox->show("Book checked out successfully!");
+                        clearInputBoxes();
+                    } else if (library.findBook(isbn) == nullptr) {
+                        messageBox->show("Book not found!");
+                    } else {
+                        messageBox->show("All copies are already checked out.");
+                    }
                 } catch (...) {
                     messageBox->show("Invalid ISBN!");
                 }
@@ -709,9 +730,14 @@ void LibraryGUI::handleReturnBookEvents(const sf::Event& event) {
             if (submitButton->isClicked(mousePos)) {
                 try {
                     int isbn = std::stoi(inputBoxes[0]->getContent());
-                    library.returnBook(isbn);
-                    messageBox->show("Book returned successfully!");
-                    clearInputBoxes();
+                    if (library.returnBook(isbn)) {
+                        messageBox->show("Book returned successfully!");
+                        clearInputBoxes();
+                    } else if (library.findBook(isbn) == nullptr) {
+                        messageBox->show("Book not found!");
+                    } else {
+                        messageBox->show("All copies are already available.");
+                    }
                 } catch (...) {
                     messageBox->show("Invalid ISBN!");
                 }

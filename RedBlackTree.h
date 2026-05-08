@@ -52,6 +52,7 @@ public:
     void clear() {
         destroyTree(root);
         root = nil;
+        nil->parent = nullptr;
     }
     template <typename Func>
     void inorderTraversal(Func func) const;
@@ -81,7 +82,8 @@ template <typename T>
 RedBlackTree<T>::RedBlackTree() {
     nil = new RBNode<T>(T());
     nil->color = BLACK;
-    nil->left = nil->right = nil->parent = nullptr;
+    nil->left = nil->right = nil;
+    nil->parent = nullptr;
     root = nil;
 }
 

@@ -151,13 +151,9 @@ User enters ISBN
 ## Practical Limitations
 
 - The GUI currently mixes presentation with backend calls in the same class.
-- Backend stdout messages are not always translated into precise GUI feedback.
 - Search results are single-row even when multiple copies exist for one ISBN.
-- `View All` logs an "Adding to list" line to stdout for each book while the list is rebuilt.
 
 ## Suggested Refactors
 
-- Separate backend result reporting from stdout so the GUI can show accurate statuses.
 - Add a copy-aware search/listing mode for duplicate ISBNs.
 - Move screen-specific form validation into helpers.
-- Remove debug stdout logging from the `VIEW_ALL` initialization path.

@@ -44,7 +44,28 @@ public:
     // Display
     void display() const;
     void serialize(std::ostream& os) const {
-        os << isbn << ',' << title << ',' << author << ',' << year << ',' << (isAvailable ? '1' : '0');
+        auto writeCsvField = [](std::ostream& out, const std::string& value) {
+            if (value.find_first_of(",\"\n\r") == std::string::npos) {
+                out << value;
+                return;
+            }
+
+            out << '"';
+            for (char ch : value) {
+                if (ch == '"') {
+                    out << "\"\"";
+                } else {
+                    out << ch;
+                }
+            }
+            out << '"';
+        };
+
+        os << isbn << ',';
+        writeCsvField(os, title);
+        os << ',';
+        writeCsvField(os, author);
+        os << ',' << year << ',' << (isAvailable ? '1' : '0');
     }
 };
 

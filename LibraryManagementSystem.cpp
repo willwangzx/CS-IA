@@ -3,10 +3,75 @@
 #include <fstream>
 #include <sstream>
 #include <cstdio>
+#include <vector>
 
 namespace {
 const std::string DataFilename = "library.dat";
 const std::string JournalFilename = "library.dat.journal";
+
+std::vector<std::string> parseCsvFields(const std::string& line) {
+    std::vector<std::string> fields;
+    std::string field;
+    bool inQuotes = false;
+
+    for (std::size_t i = 0; i < line.size(); ++i) {
+        const char ch = line[i];
+
+        if (inQuotes) {
+            if (ch == '"') {
+                if (i + 1 < line.size() && line[i + 1] == '"') {
+                    field += '"';
+                    ++i;
+                } else {
+                    inQuotes = false;
+                }
+            } else {
+                field += ch;
+            }
+        } else if (ch == ',') {
+            fields.push_back(field);
+            field.clear();
+        } else if (ch == '"' && field.empty()) {
+            inQuotes = true;
+        } else {
+            field += ch;
+        }
+    }
+
+    if (inQuotes) {
+        return {};
+    }
+
+    fields.push_back(field);
+    return fields;
+}
+
+bool parseIntField(const std::string& value, int& result) {
+    try {
+        std::size_t parsed = 0;
+        result = std::stoi(value, &parsed);
+        return parsed == value.size();
+    } catch (...) {
+        return false;
+    }
+}
+
+void writeCsvField(std::ostream& out, const std::string& value) {
+    if (value.find_first_of(",\"\n\r") == std::string::npos) {
+        out << value;
+        return;
+    }
+
+    out << '"';
+    for (char ch : value) {
+        if (ch == '"') {
+            out << "\"\"";
+        } else {
+            out << ch;
+        }
+    }
+    out << '"';
+}
 }
 
 LibraryManagementSystem::LibraryManagementSystem() : dirty(false) {
@@ -76,41 +141,48 @@ void LibraryManagementSystem::replayJournal(const std::string& filename) {
         if (line.empty()) continue;
         foundJournalEntries = true;
 
-        std::stringstream ss(line);
-        std::string operation;
-        if (!std::getline(ss, operation, ',')) continue;
+        const std::vector<std::string> fields = parseCsvFields(line);
+        if (fields.empty()) continue;
+
+        const std::string& operation = fields[0];
 
         if (operation == "ADD") {
-            std::string token;
-            if (!std::getline(ss, token, ',')) continue;
-            int isbn = std::stoi(token);
-            if (!std::getline(ss, token, ',')) continue;
-            std::string title = token;
-            if (!std::getline(ss, token, ',')) continue;
-            std::string author = token;
-            if (!std::getline(ss, token, ',')) continue;
-            int year = std::stoi(token);
+            if (fields.size() < 5) continue;
 
-            Book book(isbn, title, author, year, true, getNextCopyId(isbn));
+            int isbn = 0;
+            int year = 0;
+            if (!parseIntField(fields[1], isbn) || !parseIntField(fields[4], year)) {
+                continue;
+            }
+
+            Book book(isbn, fields[2], fields[3], year, true, getNextCopyId(isbn));
             bookTree.insert(book);
         } else if (operation == "REMOVE") {
-            std::string token;
-            if (!std::getline(ss, token, ',')) continue;
-            RBNode<Book>* node = findBookNode(std::stoi(token));
+            if (fields.size() < 2) continue;
+
+            int isbn = 0;
+            if (!parseIntField(fields[1], isbn)) continue;
+
+            RBNode<Book>* node = findBookNode(isbn);
             if (node != nullptr) {
                 bookTree.remove(node->data);
             }
         } else if (operation == "CHECKOUT") {
-            std::string token;
-            if (!std::getline(ss, token, ',')) continue;
-            RBNode<Book>* node = findAvailableBookNode(std::stoi(token));
+            if (fields.size() < 2) continue;
+
+            int isbn = 0;
+            if (!parseIntField(fields[1], isbn)) continue;
+
+            RBNode<Book>* node = findAvailableBookNode(isbn);
             if (node != nullptr) {
                 node->data.setAvailability(false);
             }
         } else if (operation == "RETURN") {
-            std::string token;
-            if (!std::getline(ss, token, ',')) continue;
-            const int isbn = std::stoi(token);
+            if (fields.size() < 2) continue;
+
+            int isbn = 0;
+            if (!parseIntField(fields[1], isbn)) continue;
+
             RBNode<Book>* node = bookTree.findFirst([isbn](const Book& book) {
                 return book.getISBN() == isbn && !book.getAvailability();
             });
@@ -128,43 +200,48 @@ void LibraryManagementSystem::replayJournal(const std::string& filename) {
 void LibraryManagementSystem::compactSave() {
     if (dirty) {
         saveToFile(DataFilename);
-        dirty = false;
     }
 }
 
-void LibraryManagementSystem::addBook(int isbn, const std::string& title,
+bool LibraryManagementSystem::addBook(int isbn, const std::string& title,
                                       const std::string& author, int year) {
     Book newBook(isbn, title, author, year, true, getNextCopyId(isbn));
     std::ostringstream journalEntry;
-    journalEntry << "ADD," << isbn << ',' << title << ',' << author << ',' << year;
+    journalEntry << "ADD," << isbn << ',';
+    writeCsvField(journalEntry, title);
+    journalEntry << ',';
+    writeCsvField(journalEntry, author);
+    journalEntry << ',' << year;
     if (!recordChange(journalEntry.str())) {
-        return;
+        return false;
     }
 
     bookTree.insert(newBook);
     std::cout << "Book added successfully: " << title
               << " (copy " << newBook.getCopyId() << ")" << std::endl;
+    return true;
 }
 
-void LibraryManagementSystem::removeBook(int isbn) {
+bool LibraryManagementSystem::removeBook(int isbn) {
     RBNode<Book>* node = findBookNode(isbn);
 
     if (node == nullptr) {
         std::cout << "Book with ISBN " << isbn << " not found." << std::endl;
-        return;
+        return false;
     }
 
     Book targetBook = node->data;
     if (!recordChange("REMOVE," + std::to_string(isbn))) {
-        return;
+        return false;
     }
 
     bookTree.remove(targetBook);
     std::cout << "Book with ISBN " << isbn << " removed successfully"
               << " (copy " << targetBook.getCopyId() << ")." << std::endl;
+    return true;
 }
 
-void LibraryManagementSystem::checkoutBook(int isbn) {
+bool LibraryManagementSystem::checkoutBook(int isbn) {
     RBNode<Book>* node = findAvailableBookNode(isbn);
 
     if (node == nullptr) {
@@ -174,19 +251,20 @@ void LibraryManagementSystem::checkoutBook(int isbn) {
         } else {
             std::cout << "All copies of ISBN " << isbn << " are already checked out." << std::endl;
         }
-        return;
+        return false;
     }
 
     if (!recordChange("CHECKOUT," + std::to_string(isbn))) {
-        return;
+        return false;
     }
 
     node->data.setAvailability(false);
     std::cout << "Book checked out successfully: " << node->data.getTitle()
               << " (copy " << node->data.getCopyId() << ")" << std::endl;
+    return true;
 }
 
-void LibraryManagementSystem::returnBook(int isbn) {
+bool LibraryManagementSystem::returnBook(int isbn) {
     RBNode<Book>* node = bookTree.findFirst([isbn](const Book& book) {
         return book.getISBN() == isbn && !book.getAvailability();
     });
@@ -198,16 +276,17 @@ void LibraryManagementSystem::returnBook(int isbn) {
         } else {
             std::cout << "All copies of ISBN " << isbn << " are already available in the library." << std::endl;
         }
-        return;
+        return false;
     }
 
     if (!recordChange("RETURN," + std::to_string(isbn))) {
-        return;
+        return false;
     }
 
     node->data.setAvailability(true);
     std::cout << "Book returned successfully: " << node->data.getTitle()
               << " (copy " << node->data.getCopyId() << ")" << std::endl;
+    return true;
 }
 
 void LibraryManagementSystem::displayBook(int isbn) {
@@ -238,36 +317,26 @@ void LibraryManagementSystem::loadFromFile(const std::string& filename) {
     }
 
     std::ifstream file(filename);
-    if (!file.is_open()) return;  // 文件不存在则静默返回
+    bookTree.clear();
+    dirty = false;
 
-    bookTree.clear();  // 清空当前树
+    if (!file.is_open()) return;
+
     std::string line;
     while (std::getline(file, line)) {
         if (line.empty()) continue;
-        std::stringstream ss(line);
-        std::string token;
+        const std::vector<std::string> fields = parseCsvFields(line);
+        if (fields.size() < 5) continue;
 
-        // 解析 ISBN
-        if (!std::getline(ss, token, ',')) continue;
-        int isbn = std::stoi(token);
+        int isbn = 0;
+        int year = 0;
+        if (!parseIntField(fields[0], isbn) || !parseIntField(fields[3], year)) {
+            continue;
+        }
 
-        // 解析标题
-        if (!std::getline(ss, token, ',')) continue;
-        std::string title = token;
+        const bool available = (fields[4] == "1");
 
-        // 解析作者
-        if (!std::getline(ss, token, ',')) continue;
-        std::string author = token;
-
-        // 解析年份
-        if (!std::getline(ss, token, ',')) continue;
-        int year = std::stoi(token);
-
-        // 解析可用性
-        if (!std::getline(ss, token, ',')) continue;
-        bool available = (token == "1");
-
-        Book book(isbn, title, author, year, available, getNextCopyId(isbn));
+        Book book(isbn, fields[1], fields[2], year, available, getNextCopyId(isbn));
         bookTree.insert(book);
     }
     file.close();
@@ -275,9 +344,10 @@ void LibraryManagementSystem::loadFromFile(const std::string& filename) {
 }
 
 void LibraryManagementSystem::saveToFile(const std::string& filename) const {
-    std::ofstream file(filename);
+    const std::string tempFilename = filename + ".tmp";
+    std::ofstream file(tempFilename);
     if (!file.is_open()) {
-        std::cerr << "Error: Could not open file for writing: " << filename << std::endl;
+        std::cerr << "Error: Could not open file for writing: " << tempFilename << std::endl;
         return;
     }
     bookTree.inorderTraversal([&file](const Book& book) {
@@ -287,6 +357,14 @@ void LibraryManagementSystem::saveToFile(const std::string& filename) const {
     file.close();
     if (!file) {
         std::cerr << "Error: Could not finish writing file: " << filename << std::endl;
+        std::remove(tempFilename.c_str());
+        return;
+    }
+
+    std::remove(filename.c_str());
+    if (std::rename(tempFilename.c_str(), filename.c_str()) != 0) {
+        std::cerr << "Error: Could not replace file: " << filename << std::endl;
+        std::remove(tempFilename.c_str());
         return;
     }
 
