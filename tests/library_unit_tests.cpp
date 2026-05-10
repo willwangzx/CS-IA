@@ -109,6 +109,13 @@ void testBookDefaultsAndSerialization() {
     expectEqual(serialized.str(), std::string("1002,1984,George Orwell,1949,1"),
                 "serialization writes persisted fields in CSV order");
 
+    Book quotedBook(1003, "Title, \"Quoted\"", "Author, Jr.", 2020, true, 1);
+    std::ostringstream quotedSerialized;
+    quotedBook.serialize(quotedSerialized);
+    expectEqual(quotedSerialized.str(),
+                std::string("1003,\"Title, \"\"Quoted\"\"\",\"Author, Jr.\",2020,1"),
+                "serialization quotes CSV fields that contain commas or quotes");
+
     std::string display = captureStdout([&checkedOut]() {
         checkedOut.display();
     });
@@ -345,17 +352,24 @@ void testLibraryLoadClearsExistingAndSkipsIncompleteRows() {
     input << "\n";
     input << "5002,Valid Two,Author Two,2002,0\n";
     input << "5001,Valid One,Author One,2001,1\n";
+    input << "5003,\"Comma, Title\",\"Author \"\"Quoted\"\"\",2003,1\n";
     input << "6001,Incomplete,Author Only\n";
+    input << "bad,Invalid ISBN,Author,2004,1\n";
+    input << "5004,\"Unclosed title,Author,2004,1\n";
     input.close();
 
     library.loadFromFile("unit_load_input.dat");
     std::vector<Book> books = collectBooks(library);
 
-    expectEqual(books.size(), static_cast<std::size_t>(2),
+    expectEqual(books.size(), static_cast<std::size_t>(3),
                 "loadFromFile clears existing catalog and skips incomplete rows");
     expectEqual(books[0].getISBN(), 5001, "loaded books are sorted by ISBN");
     expectEqual(books[1].getISBN(), 5002, "all complete rows are loaded");
     expect(!books[1].getAvailability(), "availability value 0 loads as checked out");
+    expectEqual(books[2].getTitle(), std::string("Comma, Title"),
+                "loadFromFile parses quoted CSV title fields");
+    expectEqual(books[2].getAuthor(), std::string("Author \"Quoted\""),
+                "loadFromFile parses escaped quotes in CSV fields");
 }
 
 void testLibraryJournalRecoveryWithoutFullSave() {
