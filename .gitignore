@@ -1,0 +1,79 @@
+# Ignore everything first, then allow only source and project files.
+*
+
+# Keep directories traversable for allowlisted files below.
+!*/
+
+# Build output and generated IDE/CMake files.
+/build/
+/build-*/
+/out/
+/cmake-build-*/
+/CMakeFiles/
+/CMakeCache.txt
+/cmake_install.cmake
+/CTestTestfile.cmake
+/CPackConfig.cmake
+/CPackSourceConfig.cmake
+*.sln
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+
+# Compiled binaries, libraries, and debug symbols.
+*.exe
+*.dll
+*.lib
+*.obj
+*.pdb
+*.ilk
+*.exp
+*.a
+*.so
+*.dylib
+
+# Test and build logs.
+Testing/
+*.log
+*.tlog
+*.lastbuildstate
+*.recipe
+
+# Local editor, OS, and temporary files.
+.vscode/
+.vs/
+.idea/
+*.user
+*.suo
+*.swp
+*.tmp
+*.bak
+.DS_Store
+Thumbs.db
+
+# Project files to track.
+!.gitignore
+!.github/
+!.github/workflows/
+!.github/workflows/*.yml
+!.github/workflows/*.yaml
+!CMakeLists.txt
+!Makefile
+!Makefile_*
+!setup.sh
+!*.cpp
+!*.c
+!*.cc
+!*.cxx
+!*.h
+!*.hpp
+!*.hh
+!*.md
+!*.pdf
+!scripts/
+!scripts/*.ps1
+!scripts/*.sh
+!tests/
+!tests/*.cpp
+!docs/
+!docs/*.md
