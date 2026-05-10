@@ -61,7 +61,7 @@ public:
             out << '"';
         };
 
-        os << isbn << ',';
+        os << isbn << ',' << copyId << ',';
         writeCsvField(os, title);
         os << ',';
         writeCsvField(os, author);

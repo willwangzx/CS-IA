@@ -18,14 +18,6 @@ int main() {
     LibraryManagementSystem library;
     int choice;
     
-    // Pre-populate with some sample books
-    std::cout << "Initializing library with sample books...\n" << std::endl;
-    library.addBook(1001, "The Great Gatsby", "F. Scott Fitzgerald", 1925);
-    library.addBook(1002, "To Kill a Mockingbird", "Harper Lee", 1960);
-    library.addBook(1003, "1984", "George Orwell", 1949);
-    library.addBook(1004, "Pride and Prejudice", "Jane Austen", 1813);
-    library.addBook(1005, "The Catcher in the Rye", "J.D. Salinger", 1951);
-    
     while (true) {
         displayMenu();
         std::cin >> choice;

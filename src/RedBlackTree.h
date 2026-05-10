@@ -43,6 +43,9 @@ private:
 public:
     RedBlackTree();
     ~RedBlackTree();
+
+    RedBlackTree(const RedBlackTree&) = delete;
+    RedBlackTree& operator=(const RedBlackTree&) = delete;
     
     void insert(const T& data);
     void remove(const T& data);

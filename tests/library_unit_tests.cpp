@@ -106,14 +106,14 @@ void testBookDefaultsAndSerialization() {
 
     std::ostringstream serialized;
     checkedOut.serialize(serialized);
-    expectEqual(serialized.str(), std::string("1002,1984,George Orwell,1949,1"),
-                "serialization writes persisted fields in CSV order");
+    expectEqual(serialized.str(), std::string("1002,3,1984,George Orwell,1949,1"),
+                "serialization writes persisted fields including copyId in CSV order");
 
     Book quotedBook(1003, "Title, \"Quoted\"", "Author, Jr.", 2020, true, 1);
     std::ostringstream quotedSerialized;
     quotedBook.serialize(quotedSerialized);
     expectEqual(quotedSerialized.str(),
-                std::string("1003,\"Title, \"\"Quoted\"\"\",\"Author, Jr.\",2020,1"),
+                std::string("1003,1,\"Title, \"\"Quoted\"\"\",\"Author, Jr.\",2020,1"),
                 "serialization quotes CSV fields that contain commas or quotes");
 
     std::string display = captureStdout([&checkedOut]() {
@@ -316,11 +316,11 @@ void testLibraryDisplayAndPersistence() {
         lines.push_back(line);
     }
     expect(lines == std::vector<std::string>({
-               "3001,A Title,A Author,2001,0",
-               "3001,A Title,A Author,2001,1",
-               "3002,B Title,B Author,2002,1"
+               "3001,1,A Title,A Author,2001,0",
+               "3001,2,A Title,A Author,2001,1",
+               "3002,1,B Title,B Author,2002,1"
            }),
-           "saveToFile writes sorted records and persists availability");
+           "saveToFile writes sorted records with copyId and persists availability");
 
     LibraryManagementSystem loadedLibrary;
     loadedLibrary.loadFromFile("unit_roundtrip.dat");
@@ -329,9 +329,9 @@ void testLibraryDisplayAndPersistence() {
     expectEqual(loadedBooks.size(), static_cast<std::size_t>(3),
                 "loadFromFile restores saved records");
     expectEqual(loadedBooks[0].getCopyId(), 1,
-                "loadFromFile regenerates copy IDs starting at 1 per ISBN");
+                "loadFromFile preserves copy IDs from the saved file");
     expectEqual(loadedBooks[1].getCopyId(), 2,
-                "loadFromFile regenerates later copy IDs for duplicate ISBNs");
+                "loadFromFile preserves copy IDs for duplicate ISBNs");
     expect(!loadedBooks[0].getAvailability(),
            "loadFromFile restores checked-out availability");
     expect(loadedBooks[1].getAvailability(),

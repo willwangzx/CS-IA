@@ -151,21 +151,46 @@ void LibraryManagementSystem::replayJournal(const std::string& filename) {
 
             int isbn = 0;
             int year = 0;
-            if (!parseIntField(fields[1], isbn) || !parseIntField(fields[4], year)) {
-                continue;
-            }
+            int copyId = 0;
 
-            Book book(isbn, fields[2], fields[3], year, true, getNextCopyId(isbn));
-            bookTree.insert(book);
+            if (fields.size() >= 6) {
+                // New format: ADD,isbn,copyId,title,author,year
+                if (!parseIntField(fields[1], isbn) || !parseIntField(fields[2], copyId)
+                    || !parseIntField(fields[5], year)) {
+                    continue;
+                }
+                Book book(isbn, fields[3], fields[4], year, true, copyId);
+                bookTree.insert(book);
+            } else {
+                // Old format (backward compat): ADD,isbn,title,author,year
+                if (!parseIntField(fields[1], isbn) || !parseIntField(fields[4], year)) {
+                    continue;
+                }
+                Book book(isbn, fields[2], fields[3], year, true, getNextCopyId(isbn));
+                bookTree.insert(book);
+            }
         } else if (operation == "REMOVE") {
             if (fields.size() < 2) continue;
 
             int isbn = 0;
             if (!parseIntField(fields[1], isbn)) continue;
 
-            RBNode<Book>* node = findBookNode(isbn);
-            if (node != nullptr) {
-                bookTree.remove(node->data);
+            if (fields.size() >= 3) {
+                // New format: REMOVE,isbn,copyId — target exact copy
+                int copyId = 0;
+                if (!parseIntField(fields[2], copyId)) continue;
+                RBNode<Book>* node = bookTree.findFirst([isbn, copyId](const Book& book) {
+                    return book.getISBN() == isbn && book.getCopyId() == copyId;
+                });
+                if (node != nullptr) {
+                    bookTree.remove(node->data);
+                }
+            } else {
+                // Old format: REMOVE,isbn — target first match
+                RBNode<Book>* node = findBookNode(isbn);
+                if (node != nullptr) {
+                    bookTree.remove(node->data);
+                }
             }
         } else if (operation == "CHECKOUT") {
             if (fields.size() < 2) continue;
@@ -173,9 +198,22 @@ void LibraryManagementSystem::replayJournal(const std::string& filename) {
             int isbn = 0;
             if (!parseIntField(fields[1], isbn)) continue;
 
-            RBNode<Book>* node = findAvailableBookNode(isbn);
-            if (node != nullptr) {
-                node->data.setAvailability(false);
+            if (fields.size() >= 3) {
+                // New format: CHECKOUT,isbn,copyId — target exact copy
+                int copyId = 0;
+                if (!parseIntField(fields[2], copyId)) continue;
+                RBNode<Book>* node = bookTree.findFirst([isbn, copyId](const Book& book) {
+                    return book.getISBN() == isbn && book.getCopyId() == copyId;
+                });
+                if (node != nullptr) {
+                    node->data.setAvailability(false);
+                }
+            } else {
+                // Old format: CHECKOUT,isbn — target first available
+                RBNode<Book>* node = findAvailableBookNode(isbn);
+                if (node != nullptr) {
+                    node->data.setAvailability(false);
+                }
             }
         } else if (operation == "RETURN") {
             if (fields.size() < 2) continue;
@@ -183,11 +221,24 @@ void LibraryManagementSystem::replayJournal(const std::string& filename) {
             int isbn = 0;
             if (!parseIntField(fields[1], isbn)) continue;
 
-            RBNode<Book>* node = bookTree.findFirst([isbn](const Book& book) {
-                return book.getISBN() == isbn && !book.getAvailability();
-            });
-            if (node != nullptr) {
-                node->data.setAvailability(true);
+            if (fields.size() >= 3) {
+                // New format: RETURN,isbn,copyId — target exact copy
+                int copyId = 0;
+                if (!parseIntField(fields[2], copyId)) continue;
+                RBNode<Book>* node = bookTree.findFirst([isbn, copyId](const Book& book) {
+                    return book.getISBN() == isbn && book.getCopyId() == copyId;
+                });
+                if (node != nullptr) {
+                    node->data.setAvailability(true);
+                }
+            } else {
+                // Old format: RETURN,isbn — target first checked-out
+                RBNode<Book>* node = bookTree.findFirst([isbn](const Book& book) {
+                    return book.getISBN() == isbn && !book.getAvailability();
+                });
+                if (node != nullptr) {
+                    node->data.setAvailability(true);
+                }
             }
         }
     }
@@ -203,14 +254,32 @@ void LibraryManagementSystem::compactSave() {
     }
 }
 
+static std::string sanitizeField(const std::string& value) {
+    std::string out;
+    out.reserve(value.size());
+    for (char ch : value) {
+        if (ch == '\n' || ch == '\r') {
+            out += ' ';
+        } else {
+            out += ch;
+        }
+    }
+    return out;
+}
+
 bool LibraryManagementSystem::addBook(int isbn, const std::string& title,
                                       const std::string& author, int year) {
-    Book newBook(isbn, title, author, year, true, getNextCopyId(isbn));
+    int copyId = getNextCopyId(isbn);
+    Book newBook(isbn, title, author, year, true, copyId);
+
+    std::string safeTitle = sanitizeField(title);
+    std::string safeAuthor = sanitizeField(author);
+
     std::ostringstream journalEntry;
-    journalEntry << "ADD," << isbn << ',';
-    writeCsvField(journalEntry, title);
+    journalEntry << "ADD," << isbn << ',' << copyId << ',';
+    writeCsvField(journalEntry, safeTitle);
     journalEntry << ',';
-    writeCsvField(journalEntry, author);
+    writeCsvField(journalEntry, safeAuthor);
     journalEntry << ',' << year;
     if (!recordChange(journalEntry.str())) {
         return false;
@@ -218,7 +287,7 @@ bool LibraryManagementSystem::addBook(int isbn, const std::string& title,
 
     bookTree.insert(newBook);
     std::cout << "Book added successfully: " << title
-              << " (copy " << newBook.getCopyId() << ")" << std::endl;
+              << " (copy " << copyId << ")" << std::endl;
     return true;
 }
 
@@ -231,7 +300,7 @@ bool LibraryManagementSystem::removeBook(int isbn) {
     }
 
     Book targetBook = node->data;
-    if (!recordChange("REMOVE," + std::to_string(isbn))) {
+    if (!recordChange("REMOVE," + std::to_string(isbn) + ',' + std::to_string(targetBook.getCopyId()))) {
         return false;
     }
 
@@ -254,7 +323,7 @@ bool LibraryManagementSystem::checkoutBook(int isbn) {
         return false;
     }
 
-    if (!recordChange("CHECKOUT," + std::to_string(isbn))) {
+    if (!recordChange("CHECKOUT," + std::to_string(isbn) + ',' + std::to_string(node->data.getCopyId()))) {
         return false;
     }
 
@@ -279,7 +348,7 @@ bool LibraryManagementSystem::returnBook(int isbn) {
         return false;
     }
 
-    if (!recordChange("RETURN," + std::to_string(isbn))) {
+    if (!recordChange("RETURN," + std::to_string(isbn) + ',' + std::to_string(node->data.getCopyId()))) {
         return false;
     }
 
@@ -330,14 +399,26 @@ void LibraryManagementSystem::loadFromFile(const std::string& filename) {
 
         int isbn = 0;
         int year = 0;
-        if (!parseIntField(fields[0], isbn) || !parseIntField(fields[3], year)) {
-            continue;
+        int copyId = 0;
+
+        if (fields.size() >= 6) {
+            // New format: isbn,copyId,title,author,year,available
+            if (!parseIntField(fields[0], isbn) || !parseIntField(fields[1], copyId)
+                || !parseIntField(fields[4], year)) {
+                continue;
+            }
+            const bool available = (fields[5] == "1");
+            Book book(isbn, fields[2], fields[3], year, available, copyId);
+            bookTree.insert(book);
+        } else {
+            // Old format (backward compat): isbn,title,author,year,available
+            if (!parseIntField(fields[0], isbn) || !parseIntField(fields[3], year)) {
+                continue;
+            }
+            const bool available = (fields[4] == "1");
+            Book book(isbn, fields[1], fields[2], year, available, getNextCopyId(isbn));
+            bookTree.insert(book);
         }
-
-        const bool available = (fields[4] == "1");
-
-        Book book(isbn, fields[1], fields[2], year, available, getNextCopyId(isbn));
-        bookTree.insert(book);
     }
     file.close();
     dirty = false;
@@ -361,11 +442,13 @@ void LibraryManagementSystem::saveToFile(const std::string& filename) const {
         return;
     }
 
-    std::remove(filename.c_str());
     if (std::rename(tempFilename.c_str(), filename.c_str()) != 0) {
-        std::cerr << "Error: Could not replace file: " << filename << std::endl;
-        std::remove(tempFilename.c_str());
-        return;
+        std::remove(filename.c_str());
+        if (std::rename(tempFilename.c_str(), filename.c_str()) != 0) {
+            std::cerr << "Error: Could not replace file: " << filename << std::endl;
+            std::remove(tempFilename.c_str());
+            return;
+        }
     }
 
     if (filename == DataFilename) {
