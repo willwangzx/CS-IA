@@ -158,6 +158,14 @@ void testRedBlackTreeEmptyDuplicateAndClear() {
     expect(duplicate != nullptr && duplicate->data == 5,
            "findFirst can locate a duplicated value");
 
+    RBNode<int>* firstFive = tree.lowerBound(5);
+    expect(firstFive != nullptr && firstFive->data == 5,
+           "lowerBound finds the first duplicate candidate");
+
+    RBNode<int>* secondFive = tree.successor(firstFive);
+    expect(secondFive != nullptr && secondFive->data == 5,
+           "successor walks duplicate values in sorted order");
+
     tree.clear();
     expect(tree.isEmpty(), "clear empties the tree");
     expect(collectTreeValues(tree).empty(), "cleared tree traverses as empty");
@@ -177,6 +185,10 @@ void testRedBlackTreeOrderingSearchAndRemoval() {
            "in-order traversal returns sorted values after mixed inserts");
     expect(tree.search(19) != nullptr, "search finds an inserted value");
     expect(tree.search(999) == nullptr, "search returns null for a missing value");
+    expect(tree.lowerBound(56) != nullptr && tree.lowerBound(56)->data == 57,
+           "lowerBound returns the next greater value for missing keys");
+    expect(tree.lowerBound(101) == nullptr,
+           "lowerBound returns null when every value is smaller than the key");
 
     RBNode<int>* firstLargeValue = tree.findFirst([](int value) {
         return value > 50;
@@ -422,6 +434,33 @@ void testLibraryDestructorCompactsJournal() {
                 "compacted snapshot contains the saved book");
 }
 
+void testThresholdCompactionIncludesTriggeringMutation() {
+    removeTestDataFiles();
+
+    {
+        LibraryManagementSystem library;
+        captureStdout([&library]() {
+            for (int i = 0; i < 1000; ++i) {
+                library.addBook(900000 + i, "Threshold", "Writer", 2026);
+            }
+        });
+
+        expectEqual(collectBooks(library).size(), static_cast<std::size_t>(1000),
+                    "library keeps all books in memory after threshold compaction");
+        expect(fileExists("library.dat"),
+               "threshold compaction writes a snapshot immediately");
+        expect(!fileExists("library.dat.journal"),
+               "threshold compaction removes the fully applied journal");
+    }
+
+    LibraryManagementSystem loadedLibrary;
+    std::vector<Book> loadedBooks = collectBooks(loadedLibrary);
+    expectEqual(loadedBooks.size(), static_cast<std::size_t>(1000),
+                "threshold snapshot includes the mutation that triggered compaction");
+    expectEqual(loadedBooks.back().getISBN(), 900999,
+                "the 1000th added book survives reload after threshold compaction");
+}
+
 } // namespace
 
 int main() {
@@ -440,6 +479,8 @@ int main() {
             testLibraryJournalRecoveryWithoutFullSave);
     runCase("Library destructor compacts journal",
             testLibraryDestructorCompactsJournal);
+    runCase("Threshold compaction includes triggering mutation",
+            testThresholdCompactionIncludesTriggeringMutation);
 
     removeTestDataFiles();
 
@@ -449,6 +490,6 @@ int main() {
         return EXIT_FAILURE;
     }
 
-    std::cout << assertions << " assertions passed across 10 test cases." << std::endl;
+    std::cout << assertions << " assertions passed across 11 test cases." << std::endl;
     return EXIT_SUCCESS;
 }

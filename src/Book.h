@@ -4,6 +4,22 @@
 #include <string>
 #include <iostream>
 
+inline void writeCsvField(std::ostream& out, const std::string& value) {
+    if (value.find_first_of(",\"\n\r") == std::string::npos) {
+        out << value;
+        return;
+    }
+    out << '"';
+    for (char ch : value) {
+        if (ch == '"') {
+            out << "\"\"";
+        } else {
+            out << ch;
+        }
+    }
+    out << '"';
+}
+
 class Book {
 private:
     int isbn;
@@ -44,23 +60,6 @@ public:
     // Display
     void display() const;
     void serialize(std::ostream& os) const {
-        auto writeCsvField = [](std::ostream& out, const std::string& value) {
-            if (value.find_first_of(",\"\n\r") == std::string::npos) {
-                out << value;
-                return;
-            }
-
-            out << '"';
-            for (char ch : value) {
-                if (ch == '"') {
-                    out << "\"\"";
-                } else {
-                    out << ch;
-                }
-            }
-            out << '"';
-        };
-
         os << isbn << ',' << copyId << ',';
         writeCsvField(os, title);
         os << ',';

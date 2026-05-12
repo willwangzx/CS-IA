@@ -1,8 +1,7 @@
 #ifndef REDBLACKTREE_H
 #define REDBLACKTREE_H
 
-#include "Book.h"
-#include <memory>
+#include <iostream>
 
 enum Color { RED, BLACK };
 
@@ -38,7 +37,6 @@ private:
     template <typename Func>
     void inorderHelperFunc(RBNode<T>* node, Func func) const;
     void destroyTree(RBNode<T> *node);
-    void inorderHelper(RBNode<T>* node, const T& data)const;
 
 public:
     RedBlackTree();
@@ -55,12 +53,16 @@ public:
     void clear() {
         destroyTree(root);
         root = nil;
+        nil->left = nil->right = nil;
         nil->parent = nullptr;
+        nil->color = BLACK;
     }
     template <typename Func>
     void inorderTraversal(Func func) const;
     template <typename Func>
     RBNode<T>* findFirst(Func func);
+    RBNode<T>* lowerBound(const T& key) const;
+    RBNode<T>* successor(RBNode<T>* node) const;
 };
 
 // Implementation
@@ -359,16 +361,18 @@ void RedBlackTree<T>::deleteFixup(RBNode<T>* x) {
 template <typename T>
 RBNode<T>* RedBlackTree<T>::search(const T& data) {
     RBNode<T>* current = root;
-    
-    while (current != nil && !(current->data == data)) {
+
+    while (current != nil) {
         if (data < current->data) {
             current = current->left;
-        } else {
+        } else if (current->data < data) {
             current = current->right;
+        } else {
+            return current;
         }
     }
-    
-    return (current == nil) ? nullptr : current;
+
+    return nullptr;
 }
 
 template <typename T>
@@ -406,5 +410,42 @@ template <typename T>
 template <typename Func>
 RBNode<T>* RedBlackTree<T>::findFirst(Func func) {
     return findFirstHelper(root, nil, func);
+}
+
+template <typename T>
+RBNode<T>* RedBlackTree<T>::lowerBound(const T& key) const {
+    RBNode<T>* current = root;
+    RBNode<T>* candidate = nullptr;
+
+    while (current != nil) {
+        if (current->data < key) {
+            current = current->right;
+        } else {
+            candidate = current;
+            current = current->left;
+        }
+    }
+
+    return candidate;
+}
+
+template <typename T>
+RBNode<T>* RedBlackTree<T>::successor(RBNode<T>* node) const {
+    if (node == nullptr || node == nil) return nullptr;
+
+    if (node->right != nil) {
+        RBNode<T>* succ = node->right;
+        while (succ->left != nil) {
+            succ = succ->left;
+        }
+        return succ;
+    }
+
+    RBNode<T>* parent = node->parent;
+    while (parent != nullptr && node == parent->right) {
+        node = parent;
+        parent = parent->parent;
+    }
+    return parent;
 }
 #endif
