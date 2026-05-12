@@ -106,14 +106,14 @@ void testBookDefaultsAndSerialization() {
 
     std::ostringstream serialized;
     checkedOut.serialize(serialized);
-    expectEqual(serialized.str(), std::string("1002,1984,George Orwell,1949,1"),
-                "serialization writes persisted fields in CSV order");
+    expectEqual(serialized.str(), std::string("1002,3,1984,George Orwell,1949,1"),
+                "serialization writes persisted fields including copyId in CSV order");
 
     Book quotedBook(1003, "Title, \"Quoted\"", "Author, Jr.", 2020, true, 1);
     std::ostringstream quotedSerialized;
     quotedBook.serialize(quotedSerialized);
     expectEqual(quotedSerialized.str(),
-                std::string("1003,\"Title, \"\"Quoted\"\"\",\"Author, Jr.\",2020,1"),
+                std::string("1003,1,\"Title, \"\"Quoted\"\"\",\"Author, Jr.\",2020,1"),
                 "serialization quotes CSV fields that contain commas or quotes");
 
     std::string display = captureStdout([&checkedOut]() {
@@ -158,6 +158,14 @@ void testRedBlackTreeEmptyDuplicateAndClear() {
     expect(duplicate != nullptr && duplicate->data == 5,
            "findFirst can locate a duplicated value");
 
+    RBNode<int>* firstFive = tree.lowerBound(5);
+    expect(firstFive != nullptr && firstFive->data == 5,
+           "lowerBound finds the first duplicate candidate");
+
+    RBNode<int>* secondFive = tree.successor(firstFive);
+    expect(secondFive != nullptr && secondFive->data == 5,
+           "successor walks duplicate values in sorted order");
+
     tree.clear();
     expect(tree.isEmpty(), "clear empties the tree");
     expect(collectTreeValues(tree).empty(), "cleared tree traverses as empty");
@@ -177,6 +185,10 @@ void testRedBlackTreeOrderingSearchAndRemoval() {
            "in-order traversal returns sorted values after mixed inserts");
     expect(tree.search(19) != nullptr, "search finds an inserted value");
     expect(tree.search(999) == nullptr, "search returns null for a missing value");
+    expect(tree.lowerBound(56) != nullptr && tree.lowerBound(56)->data == 57,
+           "lowerBound returns the next greater value for missing keys");
+    expect(tree.lowerBound(101) == nullptr,
+           "lowerBound returns null when every value is smaller than the key");
 
     RBNode<int>* firstLargeValue = tree.findFirst([](int value) {
         return value > 50;
@@ -316,11 +328,11 @@ void testLibraryDisplayAndPersistence() {
         lines.push_back(line);
     }
     expect(lines == std::vector<std::string>({
-               "3001,A Title,A Author,2001,0",
-               "3001,A Title,A Author,2001,1",
-               "3002,B Title,B Author,2002,1"
+               "3001,1,A Title,A Author,2001,0",
+               "3001,2,A Title,A Author,2001,1",
+               "3002,1,B Title,B Author,2002,1"
            }),
-           "saveToFile writes sorted records and persists availability");
+           "saveToFile writes sorted records with copyId and persists availability");
 
     LibraryManagementSystem loadedLibrary;
     loadedLibrary.loadFromFile("unit_roundtrip.dat");
@@ -329,9 +341,9 @@ void testLibraryDisplayAndPersistence() {
     expectEqual(loadedBooks.size(), static_cast<std::size_t>(3),
                 "loadFromFile restores saved records");
     expectEqual(loadedBooks[0].getCopyId(), 1,
-                "loadFromFile regenerates copy IDs starting at 1 per ISBN");
+                "loadFromFile preserves copy IDs from the saved file");
     expectEqual(loadedBooks[1].getCopyId(), 2,
-                "loadFromFile regenerates later copy IDs for duplicate ISBNs");
+                "loadFromFile preserves copy IDs for duplicate ISBNs");
     expect(!loadedBooks[0].getAvailability(),
            "loadFromFile restores checked-out availability");
     expect(loadedBooks[1].getAvailability(),
@@ -422,6 +434,33 @@ void testLibraryDestructorCompactsJournal() {
                 "compacted snapshot contains the saved book");
 }
 
+void testThresholdCompactionIncludesTriggeringMutation() {
+    removeTestDataFiles();
+
+    {
+        LibraryManagementSystem library;
+        captureStdout([&library]() {
+            for (int i = 0; i < 1000; ++i) {
+                library.addBook(900000 + i, "Threshold", "Writer", 2026);
+            }
+        });
+
+        expectEqual(collectBooks(library).size(), static_cast<std::size_t>(1000),
+                    "library keeps all books in memory after threshold compaction");
+        expect(fileExists("library.dat"),
+               "threshold compaction writes a snapshot immediately");
+        expect(!fileExists("library.dat.journal"),
+               "threshold compaction removes the fully applied journal");
+    }
+
+    LibraryManagementSystem loadedLibrary;
+    std::vector<Book> loadedBooks = collectBooks(loadedLibrary);
+    expectEqual(loadedBooks.size(), static_cast<std::size_t>(1000),
+                "threshold snapshot includes the mutation that triggered compaction");
+    expectEqual(loadedBooks.back().getISBN(), 900999,
+                "the 1000th added book survives reload after threshold compaction");
+}
+
 } // namespace
 
 int main() {
@@ -440,6 +479,8 @@ int main() {
             testLibraryJournalRecoveryWithoutFullSave);
     runCase("Library destructor compacts journal",
             testLibraryDestructorCompactsJournal);
+    runCase("Threshold compaction includes triggering mutation",
+            testThresholdCompactionIncludesTriggeringMutation);
 
     removeTestDataFiles();
 
@@ -449,6 +490,6 @@ int main() {
         return EXIT_FAILURE;
     }
 
-    std::cout << assertions << " assertions passed across 10 test cases." << std::endl;
+    std::cout << assertions << " assertions passed across 11 test cases." << std::endl;
     return EXIT_SUCCESS;
 }

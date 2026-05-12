@@ -12,14 +12,14 @@ option(BUILD_TESTING "Build test executables" ON)
 set(LIBRARY_GUI_DEFAULT_FONT "" CACHE STRING "Optional default font path for the GUI application")
 
 set(LIBRARY_COMMON_SOURCES
-    Book.cpp
-    LibraryManagementSystem.cpp
+    src/Book.cpp
+    src/LibraryManagementSystem.cpp
 )
 
 set(LIBRARY_COMMON_HEADERS
-    Book.h
-    LibraryManagementSystem.h
-    RedBlackTree.h
+    src/Book.h
+    src/LibraryManagementSystem.h
+    src/RedBlackTree.h
 )
 
 add_library(library_core STATIC ${LIBRARY_COMMON_SOURCES} ${LIBRARY_COMMON_HEADERS})
@@ -27,7 +27,7 @@ add_library(LibraryManagementSystem::core ALIAS library_core)
 
 target_include_directories(library_core
     PUBLIC
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
@@ -42,7 +42,7 @@ if(ENABLE_WARNINGS)
 endif()
 
 if(BUILD_CONSOLE_APP)
-    add_executable(library_system main.cpp)
+    add_executable(library_system src/main.cpp)
     target_link_libraries(library_system PRIVATE library_core)
     set_target_properties(library_system PROPERTIES OUTPUT_NAME library_system)
 
@@ -54,7 +54,7 @@ if(BUILD_GUI_APP)
     find_package(SFML 3 QUIET COMPONENTS Graphics Window System)
 
     if(SFML_FOUND AND TARGET SFML::Graphics)
-        add_executable(library_system_gui main_gui.cpp LibraryGUI.cpp)
+        add_executable(library_system_gui src/main_gui.cpp src/LibraryGUI.cpp)
         target_link_libraries(library_system_gui PRIVATE library_core SFML::Graphics)
         target_compile_definitions(library_system_gui PRIVATE LIBRARY_GUI_DEFAULT_FONT="$<IF:$<BOOL:${LIBRARY_GUI_DEFAULT_FONT}>,${LIBRARY_GUI_DEFAULT_FONT},>")
         set_target_properties(library_system_gui PROPERTIES OUTPUT_NAME library_system_gui)

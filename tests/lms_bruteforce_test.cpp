@@ -61,6 +61,24 @@ std::filesystem::path parseOutputDirectory(int argc, char** argv) {
     return std::filesystem::absolute(argv[2]);
 }
 
+std::size_t parseGroupSize(int argc, char** argv) {
+    int idx = 3;
+    if (argc >= 4 && std::string(argv[3]) == "--append") {
+        idx = 4;
+    }
+    if (argc <= idx) {
+        return 10;
+    }
+
+    std::string input = argv[idx];
+    std::size_t parsedCharacters = 0;
+    unsigned long long value = std::stoull(input, &parsedCharacters);
+    if (parsedCharacters != input.size() || value == 0) {
+        throw std::invalid_argument("group size must be a positive integer");
+    }
+    return static_cast<std::size_t>(value);
+}
+
 template <typename Func>
 double measure(Func func) {
     auto start = std::chrono::steady_clock::now();
@@ -150,10 +168,11 @@ void printSummary(const Summary& summary) {
 
 Summary runScenario(std::size_t count,
                     const std::filesystem::path& outputDirectory,
-                    bool appendHeader) {
+                    bool appendHeader,
+                    std::size_t groupSize) {
     Summary summary;
     summary.count = count;
-    summary.uniqueIsbns = std::max<std::size_t>(1, count / 10);
+    summary.uniqueIsbns = std::max<std::size_t>(1, count / groupSize);
 
     const std::filesystem::path originalCwd = std::filesystem::current_path();
     const std::filesystem::path workDir =
@@ -317,7 +336,8 @@ int main(int argc, char** argv) {
         const std::size_t count = parseCount(argc, argv);
         const std::filesystem::path outputDirectory = parseOutputDirectory(argc, argv);
         const bool includeHeader = argc < 4 || std::string(argv[3]) != "--append";
-        runScenario(count, outputDirectory, includeHeader);
+        const std::size_t groupSize = parseGroupSize(argc, argv);
+        runScenario(count, outputDirectory, includeHeader, groupSize);
         return EXIT_SUCCESS;
     } catch (const std::exception& ex) {
         std::cerr << "LMS brute-force test error: " << ex.what() << std::endl;

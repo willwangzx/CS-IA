@@ -7,12 +7,12 @@ TARGET_CONSOLE = library_system
 TARGET_GUI = library_system_gui
 
 # Source files
-COMMON_SOURCES = Book.cpp LibraryManagementSystem.cpp
-CONSOLE_SOURCES = main.cpp
-GUI_SOURCES = main_gui.cpp LibraryGUI.cpp
+COMMON_SOURCES = src/Book.cpp src/LibraryManagementSystem.cpp
+CONSOLE_SOURCES = src/main.cpp
+GUI_SOURCES = src/main_gui.cpp src/LibraryGUI.cpp
 
 # Headers
-HEADERS = Book.h RedBlackTree.h LibraryManagementSystem.h LibraryGUI.h
+HEADERS = src/Book.h src/RedBlackTree.h src/LibraryManagementSystem.h src/LibraryGUI.h
 
 # Object files
 COMMON_OBJECTS = $(COMMON_SOURCES:.cpp=.o)

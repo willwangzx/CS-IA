@@ -1,9 +1,9 @@
 CXX = g++
-CXXFLAGS = -std=c++11 -Wall -Wextra -g
+CXXFLAGS = -std=c++17 -Wall -Wextra -g
 
 TARGET = library_system
-SOURCES = main.cpp Book.cpp LibraryManagementSystem.cpp
-HEADERS = Book.h RedBlackTree.h LibraryManagementSystem.h
+SOURCES = src/main.cpp src/Book.cpp src/LibraryManagementSystem.cpp
+HEADERS = src/Book.h src/RedBlackTree.h src/LibraryManagementSystem.h
 OBJECTS = $(SOURCES:.cpp=.o)
 
 all: $(TARGET)
