@@ -14,13 +14,12 @@ LibraryGUI
   -> owns the SFML window
   -> owns the LibraryManagementSystem backend
   -> manages screen state and UI widgets
+  -> delegates Red-Black Tree drawing/animation to RBTreeVisualizer
 
 LibraryManagementSystem
-  -> loads/saves library.dat
+  -> loads library.dat and replays library.dat.journal
+  -> appends journal entries for successful mutations
   -> stores Book objects in RedBlackTree<Book>
-
-main.cpp only
-  -> seeds five sample books after backend construction
 ```
 
 ## Main Objects
@@ -64,6 +63,15 @@ Characteristics:
 - configurable duration
 - auto-hides after timeout
 
+### `RBTreeVisualizer`
+Owns the Red-Black Tree visualization screen.
+
+Responsibilities:
+- draw the real `RedBlackTree<Book>` snapshot with node colors and edges
+- manage add/remove animation timelines
+- show the current algorithm step, legend, selected book, and invariant checks
+- keep visualization-specific controls out of `LibraryGUI`
+
 ## Screen State Machine
 
 `LibraryGUI` uses this enum:
@@ -76,7 +84,8 @@ enum class Screen {
     SEARCH_BOOK,
     CHECKOUT_BOOK,
     RETURN_BOOK,
-    VIEW_ALL
+    VIEW_ALL,
+    TREE_VISUALIZER
 };
 ```
 
@@ -96,6 +105,9 @@ Current backend interactions:
 - `checkoutBook(isbn)`
 - `returnBook(isbn)`
 - `forEachBook(...)`
+- `getTreeVisualizationSnapshot()`
+- `addBookWithTreeTrace(isbn, title, author, year)`
+- `removeBookWithTreeTrace(isbn)`
 
 Important behavioral detail:
 - operations by ISBN act on the **first relevant copy**, not on all copies
@@ -128,7 +140,8 @@ User enters ISBN/title/author/year
   -> Add Book screen parses values
   -> LibraryManagementSystem::addBook(...)
   -> backend assigns next copy ID for the ISBN
-  -> backend saves library.dat
+  -> backend appends an ADD journal entry
+  -> backend may compact the journal into library.dat
   -> GUI shows a temporary success message
 ```
 
@@ -138,6 +151,15 @@ User opens View All Books
   -> GUI rebuilds ScrollableList from forEachBook(...)
   -> RedBlackTree inorder traversal produces sorted rows
   -> rows display ISBN/title/author/year/status
+```
+
+### Red-Black Tree View
+```text
+User opens Red-Black Tree View
+  -> GUI asks LibraryManagementSystem for a tree visualization snapshot
+  -> RBTreeVisualizer lays out nodes by inorder position and depth
+  -> add/remove animation calls traced backend operations
+  -> each trace step carries a snapshot for drawing and invariant reporting
 ```
 
 ### Search
@@ -152,6 +174,7 @@ User enters ISBN
 
 - The GUI currently mixes presentation with backend calls in the same class.
 - Search results are single-row even when multiple copies exist for one ISBN.
+- Red-Black Tree animation mutates the real persisted catalog rather than a throwaway demo tree.
 
 ## Suggested Refactors
 

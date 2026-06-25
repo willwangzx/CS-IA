@@ -293,8 +293,8 @@ bool LibraryGUI::loadFont(const std::string& fontPath) {
 void LibraryGUI::initializeMainMenu() {
     mainMenuButtons.clear();
     
-    float startY = 150.f;
-    float spacing = 70.f;
+    float startY = 130.f;
+    float spacing = 62.f;
     
     mainMenuButtons.push_back(std::make_unique<Button>(
         sf::Vector2f(300.f, startY), sf::Vector2f(300.f, 50.f), 
@@ -319,6 +319,10 @@ void LibraryGUI::initializeMainMenu() {
     mainMenuButtons.push_back(std::make_unique<Button>(
         sf::Vector2f(300.f, startY + spacing * 5), sf::Vector2f(300.f, 50.f), 
         "View All Books", font));
+
+    mainMenuButtons.push_back(std::make_unique<Button>(
+        sf::Vector2f(300.f, startY + spacing * 6), sf::Vector2f(300.f, 50.f),
+        "Red-Black Tree View", font));
 }
 
 void LibraryGUI::initializeAddBookScreen() {
@@ -512,6 +516,13 @@ void LibraryGUI::initializeViewAllScreen() {
         "Back", font);
 }
 
+void LibraryGUI::initializeTreeVisualizerScreen() {
+    if (!treeVisualizer) {
+        treeVisualizer = std::make_unique<RBTreeVisualizer>(font);
+    }
+    treeVisualizer->refresh(library);
+}
+
 void LibraryGUI::handleMainMenuEvents(const sf::Event& event) {
     if (const auto* mouseEvent = event.getIf<sf::Event::MouseButtonPressed>()) {
         if (mouseEvent->button == sf::Mouse::Button::Left) {
@@ -526,6 +537,7 @@ void LibraryGUI::handleMainMenuEvents(const sf::Event& event) {
                         case 3: setScreen(Screen::CHECKOUT_BOOK); break;
                         case 4: setScreen(Screen::RETURN_BOOK); break;
                         case 5: setScreen(Screen::VIEW_ALL); break;
+                        case 6: setScreen(Screen::TREE_VISUALIZER); break;
                     }
                 }
             }
@@ -765,6 +777,17 @@ void LibraryGUI::handleViewAllEvents(const sf::Event& event) {
     }
 }
 
+void LibraryGUI::handleTreeVisualizerEvents(const sf::Event& event) {
+    if (!treeVisualizer) {
+        return;
+    }
+
+    treeVisualizer->handleEvent(event, getMousePosition(), library);
+    if (treeVisualizer->consumeBackRequested()) {
+        setScreen(Screen::MAIN_MENU);
+    }
+}
+
 void LibraryGUI::renderMainMenu() {
     for (auto& button : mainMenuButtons) {
         button->draw(window);
@@ -860,6 +883,12 @@ void LibraryGUI::renderViewAllScreen() {
     backButton->draw(window);
 }
 
+void LibraryGUI::renderTreeVisualizerScreen() {
+    if (treeVisualizer) {
+        treeVisualizer->draw(window);
+    }
+}
+
 void LibraryGUI::clearInputBoxes() {
     for (auto& inputBox : inputBoxes) {
         inputBox->clear();
@@ -891,6 +920,9 @@ void LibraryGUI::setScreen(Screen screen) {
         case Screen::VIEW_ALL:
             initializeViewAllScreen();
             break;
+        case Screen::TREE_VISUALIZER:
+            initializeTreeVisualizerScreen();
+            break;
     }
 }
 
@@ -914,6 +946,10 @@ void LibraryGUI::updateHoverStates() {
     
     if (submitButton) {
         submitButton->update(mousePos);
+    }
+
+    if (treeVisualizer && currentScreen == Screen::TREE_VISUALIZER) {
+        treeVisualizer->update(mousePos);
     }
 }
 
@@ -946,6 +982,9 @@ void LibraryGUI::run() {
                     break;
                 case Screen::VIEW_ALL:
                     handleViewAllEvents(*event);
+                    break;
+                case Screen::TREE_VISUALIZER:
+                    handleTreeVisualizerEvents(*event);
                     break;
             }
         }
@@ -984,6 +1023,9 @@ void LibraryGUI::run() {
                 break;
             case Screen::VIEW_ALL:
                 renderViewAllScreen();
+                break;
+            case Screen::TREE_VISUALIZER:
+                renderTreeVisualizerScreen();
                 break;
         }
         

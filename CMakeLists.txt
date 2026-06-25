@@ -54,7 +54,11 @@ if(BUILD_GUI_APP)
     find_package(SFML 3 QUIET COMPONENTS Graphics Window System)
 
     if(SFML_FOUND AND TARGET SFML::Graphics)
-        add_executable(library_system_gui src/main_gui.cpp src/LibraryGUI.cpp)
+        add_executable(library_system_gui
+            src/main_gui.cpp
+            src/LibraryGUI.cpp
+            src/RBTreeVisualizer.cpp
+        )
         target_link_libraries(library_system_gui PRIVATE library_core SFML::Graphics)
         target_compile_definitions(library_system_gui PRIVATE LIBRARY_GUI_DEFAULT_FONT="$<IF:$<BOOL:${LIBRARY_GUI_DEFAULT_FONT}>,${LIBRARY_GUI_DEFAULT_FONT},>")
         set_target_properties(library_system_gui PROPERTIES OUTPUT_NAME library_system_gui)

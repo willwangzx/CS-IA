@@ -2,9 +2,13 @@
 
 Generated on 2026-04-27.
 
+## Current Status Note
+
+This is a historical benchmark report. It predates the May 2026 persistence and lookup optimizations that added write-ahead journal entries, threshold-based compaction, explicit `copyId` persistence, and `lowerBound()`-based ISBN lookup. The timing tables below are preserved as the original benchmark results, but the analysis should not be treated as the current performance profile without rerunning the benchmark.
+
 ## Purpose
 
-This test directly exercises `LibraryManagementSystem` through its public interface instead of testing the underlying `RedBlackTree` in isolation. The goal is to measure real backend behavior with persistence enabled, including the cost of repeatedly rewriting `library.dat`.
+This test directly exercises `LibraryManagementSystem` through its public interface instead of testing the underlying `RedBlackTree` in isolation. At the time of this run, the goal was to measure real backend behavior with persistence enabled, including the cost of repeatedly rewriting `library.dat`.
 
 The benchmark uses these public methods:
 
@@ -17,7 +21,7 @@ The benchmark uses these public methods:
 - `removeBook`
 - `loadFromFile`
 
-The test runs in a temporary working directory, so the benchmark creates and rewrites its own isolated `library.dat` and does not modify the project catalog.
+The test runs in a temporary working directory, so the benchmark creates its own isolated persistence files and does not modify the project catalog.
 
 ## Test Setup
 
@@ -96,11 +100,11 @@ The final book count is lower than the insertion count because the benchmark rem
 
 ## Analysis
 
-`addBook` is the dominant cost. At 100 records it completed at about 835 ops/s, but at 2000 records it dropped to about 238 ops/s. This happens because each call does two expensive things: it scans the tree to calculate the next copy ID for that ISBN, then rewrites the entire `library.dat` file.
+In this historical run, `addBook` was the dominant cost. At 100 records it completed at about 835 ops/s, but at 2000 records it dropped to about 238 ops/s. In the measured version, each call did two expensive things: it scanned the tree to calculate the next copy ID for that ISBN, then rewrote the entire `library.dat` file.
 
-`checkoutBook`, `returnBook`, and `removeBook` show the same pattern. They are not just tree updates; each successful mutation also calls `saveToFile("library.dat")`, so the cost grows with catalog size. At 2000 inserted records, `checkoutBook` needed 7.10 seconds for 1000 operations.
+`checkoutBook`, `returnBook`, and `removeBook` showed the same pattern in the measured version. They were not just tree updates; each successful mutation also called `saveToFile("library.dat")`, so the cost grew with catalog size. At 2000 inserted records, `checkoutBook` needed 7.10 seconds for 1000 operations.
 
-`findBook` is much faster because it does not write to disk. However, it still uses `findFirst`, which performs an in-order traversal rather than a direct ISBN-keyed tree search. The benchmark stays fast at 2000 records, but this operation is still effectively linear in the current design.
+`findBook` was much faster because it did not write to disk. In the measured version it still used `findFirst`, which performed an in-order traversal rather than a direct ISBN-keyed tree search. The current code now uses `lowerBound(Book(isbn))` for first-copy lookup, so this specific limitation has been addressed.
 
 `forEachBook`, single `saveToFile`, and `loadFromFile` scale roughly with the number of records. That is expected: each of these operations touches the whole catalog once.
 
@@ -108,25 +112,24 @@ The serialized file size grows linearly. The explicit save after 2000 records is
 
 ## Scaling Implication
 
-The previous red-black-tree-only stress test handled 10,000,000 inserts successfully because it measured the tree structure directly. This brute-force test is different: it uses `LibraryManagementSystem::addBook`, which rewrites the full data file on every insertion.
+The previous red-black-tree-only stress test handled 10,000,000 inserts successfully because it measured the tree structure directly. This brute-force test is different: it used the public `LibraryManagementSystem::addBook` API from the pre-journal implementation, which rewrote the full data file on every insertion.
 
-Using the 2000-record measurement as a rough lower-bound model, scaling `addBook` to 10,000,000 records with the current persistence design would be unrealistic. The repeated full-file saves imply quadratic total file output. With about 35 bytes per record, 10,000,000 repeated inserts would imply petabyte-scale cumulative file writing, before counting checkout/return/remove operations.
+Using the 2000-record measurement as a rough lower-bound model, scaling `addBook` to 10,000,000 records with the measured persistence design would have been unrealistic. The repeated full-file saves implied quadratic total file output. With about 35 bytes per record, 10,000,000 repeated inserts would imply petabyte-scale cumulative file writing, before counting checkout/return/remove operations.
 
-So the current implementation is acceptable for small educational datasets, but it is not designed for very large catalogs through the public LMS mutation API.
+The current implementation has changed since this report, so large-scale public-API performance should be reassessed with a fresh benchmark before drawing new scaling conclusions.
 
 ## Conclusions
 
 - The public LMS interface works correctly under the tested brute-force scenarios.
 - The final catalog counts match the expected workflow state.
-- Persistence is the main performance bottleneck.
+- Persistence was the main performance bottleneck in this historical run.
 - The tree itself is not the limiting factor in this public-interface benchmark.
-- `findBook` is faster than mutating operations, but still uses linear predicate traversal.
-- Direct `LibraryManagementSystem` testing at `1e7` scale is not practical with the current save-on-every-mutation design.
+- `findBook` was faster than mutating operations, but used linear predicate traversal in the measured version.
+- Direct `LibraryManagementSystem` testing at `1e7` scale was not practical with the measured save-on-every-mutation design.
 
 ## Recommended Improvements
 
-- Avoid rewriting `library.dat` after every single mutation during bulk operations.
+- Rerun this benchmark against the current journal-based implementation.
 - Add a bulk import mode, for example `addBook(..., autosave=false)` or `beginBatch/endBatch`.
-- Store books by ISBN in a structure that supports direct ISBN lookup instead of predicate traversal.
-- Persist `copyId` in the file format so loading does not need to regenerate copy IDs by scanning existing records.
-- Replace ad hoc CSV parsing if titles/authors may contain commas.
+- Keep monitoring compaction cost, because `compactSave()` still rewrites the full snapshot.
+- Add copy-specific public operations if exact duplicate-copy control becomes important.

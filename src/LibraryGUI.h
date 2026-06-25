@@ -5,6 +5,7 @@
 #include <SFML/Window.hpp>
 #include <SFML/System.hpp>
 #include "LibraryManagementSystem.h"
+#include "RBTreeVisualizer.h"
 #include <vector>
 #include <string>
 #include <memory>
@@ -103,7 +104,7 @@ private:
     
     // UI State
     enum class Screen { MAIN_MENU, ADD_BOOK, REMOVE_BOOK, SEARCH_BOOK, 
-                       CHECKOUT_BOOK, RETURN_BOOK, VIEW_ALL };
+                       CHECKOUT_BOOK, RETURN_BOOK, VIEW_ALL, TREE_VISUALIZER };
     Screen currentScreen;
     
     // UI Components
@@ -113,6 +114,7 @@ private:
     std::unique_ptr<MessageBox> messageBox;
     std::unique_ptr<Button> backButton;
     std::unique_ptr<Button> submitButton;
+    std::unique_ptr<RBTreeVisualizer> treeVisualizer;
     
     // Labels
     std::vector<sf::Text> labels;
@@ -131,6 +133,7 @@ private:
     void initializeCheckoutBookScreen();
     void initializeReturnBookScreen();
     void initializeViewAllScreen();
+    void initializeTreeVisualizerScreen();
     
     void handleMainMenuEvents(const sf::Event& event);
     void handleAddBookEvents(const sf::Event& event);
@@ -139,6 +142,7 @@ private:
     void handleCheckoutBookEvents(const sf::Event& event);
     void handleReturnBookEvents(const sf::Event& event);
     void handleViewAllEvents(const sf::Event& event);
+    void handleTreeVisualizerEvents(const sf::Event& event);
     
     void renderMainMenu();
     void renderAddBookScreen();
@@ -147,6 +151,7 @@ private:
     void renderCheckoutBookScreen();
     void renderReturnBookScreen();
     void renderViewAllScreen();
+    void renderTreeVisualizerScreen();
     
     void clearInputBoxes();
     void setScreen(Screen screen);

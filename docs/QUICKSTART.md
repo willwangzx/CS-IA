@@ -25,7 +25,7 @@ make -f Makefile_complete all
 
 ### Console app
 - C++17-compatible compiler
-- CMake 3.16+ if using the recommended path
+- CMake 3.21+ if using the recommended path
 
 ### GUI app
 - SFML graphics/window/system libraries
@@ -73,13 +73,13 @@ LIBRARY_GUI_FONT=/absolute/path/to/font.ttf ./build/library_system_gui
 ## 5. First Run Expectations
 
 ### Startup state depends on the front end
-- The shared backend loads from `library.dat`.
-- The **console app** then inserts five sample books every time it starts.
-- The **GUI app** does not auto-seed sample books.
-- If `library.dat` is missing and you launch the GUI first, it starts empty. If you launch the console first, those sample books are inserted and saved.
+- The shared backend loads from `library.dat` and replays `library.dat.journal` if pending entries exist.
+- The **console app** and **GUI app** use the same persisted catalog.
+- Neither front end auto-seeds sample books.
+- If the persistence files are missing, the app starts with an empty library.
 
 ### Data is saved automatically
-Successful add, remove, checkout, and return operations rewrite `library.dat`.
+Successful add, remove, checkout, and return operations append journal entries. The backend compacts the journal into `library.dat` after the compaction threshold or when the backend shuts down.
 
 ### Duplicate copies are allowed
 Adding the same ISBN multiple times creates multiple copies instead of rejecting the insert.

@@ -16,6 +16,7 @@ namespace {
 
 int failures = 0;
 int assertions = 0;
+int casesRun = 0;
 std::vector<std::string> failedCases;
 
 void expect(bool condition, const std::string& message) {
@@ -59,6 +60,7 @@ bool fileExists(const std::string& filename) {
 template <typename Func>
 void runCase(const std::string& name, Func func) {
     const int failuresBefore = failures;
+    ++casesRun;
     std::cout << "[ RUN      ] " << name << std::endl;
     func();
 
@@ -84,6 +86,13 @@ std::vector<Book> collectBooks(const LibraryManagementSystem& library) {
         books.push_back(book);
     });
     return books;
+}
+
+template <typename T>
+bool hasStepKind(const std::vector<RBTreeTraceStep<T>>& trace, RBTreeStepKind kind) {
+    return std::any_of(trace.begin(), trace.end(), [kind](const RBTreeTraceStep<T>& step) {
+        return step.kind == kind;
+    });
 }
 
 void testBookDefaultsAndSerialization() {
@@ -206,6 +215,94 @@ void testRedBlackTreeOrderingSearchAndRemoval() {
            "remove handles mixed deletion cases and ignores missing values");
 }
 
+void testRedBlackTreeVisualizationSnapshot() {
+    RedBlackTree<int> emptyTree;
+    RBTreeVisualSnapshot<int> emptySnapshot = emptyTree.visualSnapshot();
+    expectEqual(emptySnapshot.nodeCount, 0, "empty snapshot reports zero real nodes");
+    expectEqual(emptySnapshot.rootId, -1, "empty snapshot has no root");
+    expect(emptySnapshot.rootBlack, "empty tree satisfies root black invariant");
+    expect(emptySnapshot.noRedRed, "empty tree has no red-red violation");
+    expect(emptySnapshot.uniformBlackHeight, "empty tree has uniform black height");
+
+    RedBlackTree<int> tree;
+    for (int value : {10, 5, 15, 3, 7}) {
+        tree.insert(value);
+    }
+
+    RBTreeVisualSnapshot<int> snapshot = tree.visualSnapshot();
+    expectEqual(snapshot.nodeCount, 5, "snapshot counts real nodes");
+    expect(snapshot.rootId >= 0, "non-empty snapshot has a root ID");
+    expect(snapshot.height >= 3, "snapshot records tree height");
+    expect(snapshot.nodes.size() >= static_cast<std::size_t>(snapshot.nodeCount),
+           "snapshot includes drawable nodes");
+    expect(snapshot.nodes[snapshot.rootId].color == BLACK,
+           "snapshot root node is black");
+    expect(snapshot.rootBlack, "snapshot validates root black");
+    expect(snapshot.noRedRed, "snapshot validates red-red rule");
+    expect(snapshot.uniformBlackHeight, "snapshot validates black-height rule");
+}
+
+void testRedBlackTreeInsertTrace() {
+    RedBlackTree<int> tree;
+    std::vector<RBTreeTraceStep<int>> firstTrace = tree.insertWithTrace(10);
+    expect(hasStepKind(firstTrace, RBTreeStepKind::InsertRed),
+           "insert trace records red node insertion");
+    expect(hasStepKind(firstTrace, RBTreeStepKind::RootBlack),
+           "insert trace records root black enforcement");
+    expect(hasStepKind(firstTrace, RBTreeStepKind::Complete),
+           "insert trace records completion");
+
+    tree.insertWithTrace(20);
+    std::vector<RBTreeTraceStep<int>> rotationTrace = tree.insertWithTrace(30);
+    expect(hasStepKind(rotationTrace, RBTreeStepKind::Compare),
+           "insert trace records search comparisons");
+    expect(hasStepKind(rotationTrace, RBTreeStepKind::RotateLeft),
+           "insert trace records left rotation when balancing ascending inserts");
+    expect(collectTreeValues(tree) == std::vector<int>({10, 20, 30}),
+           "traced inserts preserve sorted traversal");
+
+    RBTreeVisualSnapshot<int> snapshot = tree.visualSnapshot();
+    expect(snapshot.rootBlack && snapshot.noRedRed && snapshot.uniformBlackHeight,
+           "tree remains valid after traced inserts");
+}
+
+void testRedBlackTreeDeleteTrace() {
+    RedBlackTree<int> leafTree;
+    for (int value : {10, 5, 15}) {
+        leafTree.insert(value);
+    }
+    std::vector<RBTreeTraceStep<int>> leafTrace = leafTree.removeWithTrace(5);
+    expect(hasStepKind(leafTrace, RBTreeStepKind::DeleteTarget),
+           "delete trace records the selected target");
+    expect(hasStepKind(leafTrace, RBTreeStepKind::Transplant),
+           "delete trace records leaf transplant");
+
+    RedBlackTree<int> twoChildTree;
+    for (int value : {20, 10, 30, 5, 15, 25, 35}) {
+        twoChildTree.insert(value);
+    }
+    std::vector<RBTreeTraceStep<int>> twoChildTrace = twoChildTree.removeWithTrace(20);
+    expect(hasStepKind(twoChildTrace, RBTreeStepKind::Successor),
+           "delete trace records successor selection for two-child deletion");
+    expect(hasStepKind(twoChildTrace, RBTreeStepKind::Transplant),
+           "delete trace records structural replacement for two-child deletion");
+
+    RedBlackTree<int> fixupTree;
+    for (int value : {1, 2, 3, 4}) {
+        fixupTree.insert(value);
+    }
+    std::vector<RBTreeTraceStep<int>> fixupTrace = fixupTree.removeWithTrace(1);
+    expect(hasStepKind(fixupTrace, RBTreeStepKind::Recolor),
+           "delete fixup trace records recoloring");
+    expect(hasStepKind(fixupTrace, RBTreeStepKind::RotateLeft) ||
+               hasStepKind(fixupTrace, RBTreeStepKind::RotateRight),
+           "delete fixup trace records rotation when required");
+
+    RBTreeVisualSnapshot<int> snapshot = fixupTree.visualSnapshot();
+    expect(snapshot.rootBlack && snapshot.noRedRed && snapshot.uniformBlackHeight,
+           "tree remains valid after traced deletes");
+}
+
 void testLibraryStartsEmptyAndReportsEmptyCatalog() {
     removeTestDataFiles();
 
@@ -294,6 +391,40 @@ void testLibraryCopyWorkflowAndMessages() {
     });
     expect(missingRemove.find("not found") != std::string::npos,
            "removeBook reports a missing ISBN");
+}
+
+void testLibraryTracedTreeOperations() {
+    removeTestDataFiles();
+
+    LibraryManagementSystem library;
+    LibraryManagementSystem::TreeOperationResult first =
+        library.addBookWithTreeTrace(2101, "Visual Tree", "Animator", 2026);
+    LibraryManagementSystem::TreeOperationResult second =
+        library.addBookWithTreeTrace(2101, "Visual Tree", "Animator", 2026);
+
+    expect(first.success, "traced add succeeds for a valid book");
+    expect(second.success, "traced add succeeds for duplicate ISBN copies");
+    expect(hasStepKind(first.trace, RBTreeStepKind::InsertRed),
+           "traced add exposes insert trace");
+
+    std::vector<Book> books = collectBooks(library);
+    expectEqual(books.size(), static_cast<std::size_t>(2),
+                "traced add stores real library records");
+    expectEqual(books[0].getCopyId(), 1, "first traced add uses copy 1");
+    expectEqual(books[1].getCopyId(), 2, "second traced add uses copy 2");
+
+    RBTreeVisualSnapshot<Book> snapshot = library.getTreeVisualizationSnapshot();
+    expectEqual(snapshot.nodeCount, 2, "library exposes real tree snapshot");
+    expect(snapshot.rootBlack && snapshot.noRedRed && snapshot.uniformBlackHeight,
+           "library tree snapshot validates red-black invariants");
+
+    LibraryManagementSystem::TreeOperationResult removed =
+        library.removeBookWithTreeTrace(2101);
+    expect(removed.success, "traced remove succeeds for an existing ISBN");
+    expect(hasStepKind(removed.trace, RBTreeStepKind::DeleteTarget),
+           "traced remove exposes delete trace");
+    expectEqual(collectBooks(library).size(), static_cast<std::size_t>(1),
+                "traced remove deletes one matching copy");
 }
 
 void testLibraryDisplayAndPersistence() {
@@ -470,8 +601,12 @@ int main() {
     runCase("Book ordering and identity", testBookOrderingAndIdentity);
     runCase("RedBlackTree empty, duplicate, and clear behavior", testRedBlackTreeEmptyDuplicateAndClear);
     runCase("RedBlackTree ordering, search, and removal", testRedBlackTreeOrderingSearchAndRemoval);
+    runCase("RedBlackTree visualization snapshot", testRedBlackTreeVisualizationSnapshot);
+    runCase("RedBlackTree insert trace", testRedBlackTreeInsertTrace);
+    runCase("RedBlackTree delete trace", testRedBlackTreeDeleteTrace);
     runCase("Library empty startup and empty catalog display", testLibraryStartsEmptyAndReportsEmptyCatalog);
     runCase("Library duplicate-copy workflow and user messages", testLibraryCopyWorkflowAndMessages);
+    runCase("Library traced tree operations", testLibraryTracedTreeOperations);
     runCase("Library display and persistence", testLibraryDisplayAndPersistence);
     runCase("Library load clears existing data and skips incomplete rows",
             testLibraryLoadClearsExistingAndSkipsIncompleteRows);
@@ -490,6 +625,7 @@ int main() {
         return EXIT_FAILURE;
     }
 
-    std::cout << assertions << " assertions passed across 11 test cases." << std::endl;
+    std::cout << assertions << " assertions passed across " << casesRun
+              << " test cases." << std::endl;
     return EXIT_SUCCESS;
 }

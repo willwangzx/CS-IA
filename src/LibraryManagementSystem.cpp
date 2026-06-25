@@ -327,6 +327,37 @@ bool LibraryManagementSystem::addBook(int isbn, const std::string& title,
     return true;
 }
 
+LibraryManagementSystem::TreeOperationResult
+LibraryManagementSystem::addBookWithTreeTrace(int isbn, const std::string& title,
+                                              const std::string& author, int year) {
+    TreeOperationResult result;
+    int copyId = getNextCopyId(isbn);
+    Book newBook(isbn, title, author, year, true, copyId);
+
+    std::string safeTitle = sanitizeField(title);
+    std::string safeAuthor = sanitizeField(author);
+
+    std::ostringstream journalEntry;
+    journalEntry << "ADD," << isbn << ',' << copyId << ',';
+    writeCsvField(journalEntry, safeTitle);
+    journalEntry << ',';
+    writeCsvField(journalEntry, safeAuthor);
+    journalEntry << ',' << year;
+    if (!recordChange(journalEntry.str())) {
+        result.message = "Book could not be added.";
+        return result;
+    }
+
+    result.trace = bookTree.insertWithTrace(newBook);
+    nextCopyIdByIsbn[isbn] = copyId;
+    compactIfThresholdReached();
+    result.success = true;
+    result.message = "Book added successfully: " + title +
+                     " (copy " + std::to_string(copyId) + ")";
+    std::cout << result.message << std::endl;
+    return result;
+}
+
 bool LibraryManagementSystem::removeBook(int isbn) {
     RBNode<Book>* node = findBookNode(isbn);
 
@@ -345,6 +376,34 @@ bool LibraryManagementSystem::removeBook(int isbn) {
     std::cout << "Book with ISBN " << isbn << " removed successfully"
               << " (copy " << targetBook.getCopyId() << ")." << std::endl;
     return true;
+}
+
+LibraryManagementSystem::TreeOperationResult
+LibraryManagementSystem::removeBookWithTreeTrace(int isbn) {
+    TreeOperationResult result;
+    RBNode<Book>* node = findBookNode(isbn);
+
+    if (node == nullptr) {
+        result.message = "Book with ISBN " + std::to_string(isbn) + " not found.";
+        std::cout << result.message << std::endl;
+        return result;
+    }
+
+    Book targetBook = node->data;
+    if (!recordChange("REMOVE," + std::to_string(isbn) + ',' +
+                      std::to_string(targetBook.getCopyId()))) {
+        result.message = "Book could not be removed.";
+        return result;
+    }
+
+    result.trace = bookTree.removeWithTrace(targetBook);
+    compactIfThresholdReached();
+    result.success = true;
+    result.message = "Book with ISBN " + std::to_string(isbn) +
+                     " removed successfully (copy " +
+                     std::to_string(targetBook.getCopyId()) + ").";
+    std::cout << result.message << std::endl;
+    return result;
 }
 
 bool LibraryManagementSystem::checkoutBook(int isbn) {
@@ -505,6 +564,10 @@ void LibraryManagementSystem::saveToFile(const std::string& filename) const {
 
 void LibraryManagementSystem::forEachBook(std::function<void(const Book&)> func) const {
     bookTree.inorderTraversal(func);
+}
+
+RBTreeVisualSnapshot<Book> LibraryManagementSystem::getTreeVisualizationSnapshot() const {
+    return bookTree.visualSnapshot();
 }
 
 Book* LibraryManagementSystem::findBook(int isbn) {

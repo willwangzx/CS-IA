@@ -7,6 +7,7 @@
 #include <string>
 #include <unordered_map>
 #include <fstream>
+#include <vector>
 
 class LibraryManagementSystem {
 private:
@@ -32,6 +33,12 @@ private:
     void compactIfThresholdReached();
 
 public:
+    struct TreeOperationResult {
+        bool success = false;
+        std::string message;
+        std::vector<RBTreeTraceStep<Book>> trace;
+    };
+
     LibraryManagementSystem();
     ~LibraryManagementSystem();
     
@@ -45,6 +52,10 @@ public:
     void loadFromFile(const std::string& filename);
     void saveToFile(const std::string& filename) const;
     void forEachBook(std::function<void(const Book&)> func) const;
+    RBTreeVisualSnapshot<Book> getTreeVisualizationSnapshot() const;
+    TreeOperationResult addBookWithTreeTrace(int isbn, const std::string& title,
+                                             const std::string& author, int year);
+    TreeOperationResult removeBookWithTreeTrace(int isbn);
 
     // Search operations
     Book* findBook(int isbn);

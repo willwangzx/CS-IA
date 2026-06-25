@@ -53,6 +53,7 @@ Thumbs.db
 
 # Project files to track.
 !.gitignore
+!.gitattributes
 !.github/
 !.github/workflows/
 !.github/workflows/*.yml
